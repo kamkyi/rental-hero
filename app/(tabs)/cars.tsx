@@ -1,0 +1,1113 @@
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useMemo, useState } from "react";
+import {
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Calendar, DateData } from "react-native-calendars";
+
+import { AppShell } from "@/components/AppShell";
+import { CarCard } from "@/components/CarCard";
+import { FilterChip } from "@/components/FilterChip";
+import { palette, radius, shadows, spacing } from "@/constants/theme";
+import { cars, carTypes, locations } from "@/data/cars";
+import { useResponsive } from "@/hooks/useResponsive";
+
+const priceRanges = [
+  { label: "All prices", min: 0, max: Number.POSITIVE_INFINITY },
+  { label: "Up to ฿1,500", min: 0, max: 1500 },
+  { label: "฿1,500 - ฿3,000", min: 1500, max: 3000 },
+  { label: "Above ฿3,000", min: 3000, max: Number.POSITIVE_INFINITY },
+];
+
+const locationDescriptions: Record<(typeof locations)[number], string> = {
+  All: "Browse all pickup cities",
+  Bangkok: "Airport, Sukhumvit, Sathorn",
+  "Chiang Mai": "Old City and Nimman pickup",
+  Phuket: "Patong and airport delivery",
+  Pattaya: "Beach road and downtown pickup",
+};
+
+const locationIcons: Record<
+  (typeof locations)[number],
+  React.ComponentProps<typeof Ionicons>["name"]
+> = {
+  All: "globe-outline",
+  Bangkok: "business-outline",
+  "Chiang Mai": "leaf-outline",
+  Phuket: "sunny-outline",
+  Pattaya: "boat-outline",
+};
+
+const carTypeDescriptions: Record<(typeof carTypes)[number], string> = {
+  All: "See every available vehicle",
+  SUV: "Family trips and extra luggage",
+  Sedan: "City rides and business travel",
+  Luxury: "Premium comfort and style",
+  Electric: "Quiet drives with low fuel cost",
+  Van: "Large groups and airport transfer",
+};
+
+const carTypeIcons: Record<
+  (typeof carTypes)[number],
+  React.ComponentProps<typeof Ionicons>["name"]
+> = {
+  All: "apps-outline",
+  SUV: "car-sport-outline",
+  Sedan: "car-outline",
+  Luxury: "diamond-outline",
+  Electric: "flash-outline",
+  Van: "bus-outline",
+};
+
+const priceDescriptions: Record<string, string> = {
+  "All prices": "Flexible budget across all cars",
+  "Up to ฿1,500": "Best-value daily rentals",
+  "฿1,500 - ฿3,000": "Balanced comfort and price",
+  "Above ฿3,000": "Premium and flagship vehicles",
+};
+
+const brands = [
+  { name: "BMW", mark: "B" },
+  { name: "Toyota", mark: "T" },
+  { name: "Mercedes", mark: "M" },
+  { name: "Tesla", mark: "T" },
+];
+
+const filterSections = ["dates", "location", "type", "price"] as const;
+type FilterSection = (typeof filterSections)[number];
+
+const today = new Date();
+
+function toDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateKey(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function addDays(date: Date, count: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + count);
+  return next;
+}
+
+function formatDisplayDate(dateKey?: string) {
+  if (!dateKey) {
+    return "Select date";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(parseDateKey(dateKey));
+}
+
+function buildMarkedRange(startDate?: string, endDate?: string) {
+  if (!startDate) {
+    return {};
+  }
+
+  if (!endDate || startDate === endDate) {
+    return {
+      [startDate]: {
+        startingDay: true,
+        endingDay: true,
+        color: "#0F66EA",
+        textColor: "#FFFFFF",
+      },
+    };
+  }
+
+  const marks: Record<
+    string,
+    {
+      startingDay?: boolean;
+      endingDay?: boolean;
+      color: string;
+      textColor: string;
+    }
+  > = {};
+  const cursor = parseDateKey(startDate);
+  const finalDate = parseDateKey(endDate);
+
+  while (cursor <= finalDate) {
+    const key = toDateKey(cursor);
+    const isFirst = key === startDate;
+    const isLast = key === endDate;
+
+    marks[key] = {
+      startingDay: isFirst,
+      endingDay: isLast,
+      color: isFirst || isLast ? "#0F66EA" : "#DCEBFF",
+      textColor: isFirst || isLast ? "#FFFFFF" : "#16478A",
+    };
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return marks;
+}
+
+export default function CarsTabScreen() {
+  const { isTablet, listColumns } = useResponsive();
+  const [search, setSearch] = useState("");
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [activeFilterSection, setActiveFilterSection] =
+    useState<FilterSection>("dates");
+  const [selectedLocation, setSelectedLocation] =
+    useState<(typeof locations)[number]>("All");
+  const [selectedType, setSelectedType] =
+    useState<(typeof carTypes)[number]>("All");
+  const [selectedPrice, setSelectedPrice] = useState(priceRanges[0].label);
+  const [dateFrom, setDateFrom] = useState(toDateKey(addDays(today, 2)));
+  const [dateTo, setDateTo] = useState(toDateKey(addDays(today, 5)));
+
+  const filteredCars = useMemo(() => {
+    const activeRange =
+      priceRanges.find((range) => range.label === selectedPrice) ??
+      priceRanges[0];
+    const normalized = search.trim().toLowerCase();
+
+    return cars.filter((car) => {
+      const matchesSearch =
+        normalized.length === 0 ||
+        car.name.toLowerCase().includes(normalized) ||
+        car.type.toLowerCase().includes(normalized) ||
+        car.location.toLowerCase().includes(normalized);
+      const matchesLocation =
+        selectedLocation === "All" || car.location === selectedLocation;
+      const matchesType = selectedType === "All" || car.type === selectedType;
+      const matchesPrice =
+        car.pricePerDay >= activeRange.min &&
+        car.pricePerDay <= activeRange.max;
+
+      return matchesSearch && matchesLocation && matchesType && matchesPrice;
+    });
+  }, [search, selectedLocation, selectedType, selectedPrice]);
+
+  const displayLocation =
+    selectedLocation === "All"
+      ? "Bangkok, Thailand"
+      : `${selectedLocation}, Thailand`;
+
+  const activeLocationText =
+    selectedLocation === "All" ? "Any pickup city" : selectedLocation;
+  const activeTypeText =
+    selectedType === "All" ? "Any vehicle class" : selectedType;
+
+  const markedDates = useMemo(
+    () => buildMarkedRange(dateFrom, dateTo),
+    [dateFrom, dateTo],
+  );
+
+  const tripLength = useMemo(() => {
+    if (!dateFrom || !dateTo) {
+      return 0;
+    }
+
+    const difference =
+      parseDateKey(dateTo).getTime() - parseDateKey(dateFrom).getTime();
+    return Math.max(1, Math.ceil(difference / (1000 * 60 * 60 * 24)));
+  }, [dateFrom, dateTo]);
+
+  const handleDateSelect = (day: DateData) => {
+    if (!dateFrom || (dateFrom && dateTo)) {
+      setDateFrom(day.dateString);
+      setDateTo("");
+      return;
+    }
+
+    if (day.dateString < dateFrom) {
+      setDateFrom(day.dateString);
+      setDateTo("");
+      return;
+    }
+
+    setDateTo(day.dateString);
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setSelectedLocation("All");
+    setSelectedType("All");
+    setSelectedPrice(priceRanges[0].label);
+    setDateFrom(toDateKey(addDays(today, 2)));
+    setDateTo(toDateKey(addDays(today, 5)));
+  };
+
+  const blurActiveWebElement = () => {
+    if (
+      typeof document !== "undefined" &&
+      document.activeElement instanceof HTMLElement
+    ) {
+      document.activeElement.blur();
+    }
+  };
+
+  const openFilters = () => {
+    blurActiveWebElement();
+    setActiveFilterSection("dates");
+    setIsFiltersOpen(true);
+  };
+
+  const closeFilters = () => {
+    blurActiveWebElement();
+    setIsFiltersOpen(false);
+  };
+
+  return (
+    <AppShell>
+      <View style={styles.heroPanel}>
+        <Text style={styles.heroLabel}>Location</Text>
+
+        <View style={styles.heroTopRow}>
+          <View style={styles.heroLocationBlock}>
+            <View style={styles.locationRow}>
+              <Ionicons name="location" size={14} color="#DDEBFF" />
+              <Text style={styles.heroLocation}>{displayLocation}</Text>
+            </View>
+            <Text style={styles.heroMeta}>
+              {filteredCars.length} cars available now
+            </Text>
+          </View>
+
+          <Pressable style={styles.heroIconButton}>
+            <Ionicons
+              name="notifications-outline"
+              size={20}
+              color={palette.white}
+            />
+          </Pressable>
+        </View>
+
+        <View style={styles.searchRow}>
+          <View style={styles.searchShell}>
+            <Ionicons name="search-outline" size={18} color="#6F7D90" />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search"
+              placeholderTextColor="#8091A6"
+              style={styles.searchInput}
+            />
+          </View>
+
+          <Pressable style={styles.filterButton} onPress={openFilters}>
+            <Ionicons name="options-outline" size={20} color="#1976FF" />
+          </Pressable>
+        </View>
+
+        <View style={styles.summaryStrip}>
+          <View style={styles.summaryPill}>
+            <Ionicons name="calendar-outline" size={15} color="#DDEBFF" />
+            <Text style={styles.summaryPillText}>
+              {formatDisplayDate(dateFrom)} - {formatDisplayDate(dateTo)}
+            </Text>
+          </View>
+          <View style={styles.summaryPill}>
+            <Ionicons name="location-outline" size={15} color="#DDEBFF" />
+            <Text style={styles.summaryPillText}>{activeLocationText}</Text>
+          </View>
+          <View style={styles.summaryPill}>
+            <Ionicons name="car-outline" size={15} color="#DDEBFF" />
+            <Text style={styles.summaryPillText}>{activeTypeText}</Text>
+          </View>
+          <View style={styles.summaryPill}>
+            <Ionicons name="cash-outline" size={15} color="#DDEBFF" />
+            <Text style={styles.summaryPillText}>{selectedPrice}</Text>
+          </View>
+        </View>
+      </View>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={isFiltersOpen}
+        onRequestClose={closeFilters}
+      >
+        <View style={styles.modalBackdrop}>
+          <Pressable style={styles.modalScrim} onPress={closeFilters} />
+          <View style={[styles.modalCard, isTablet && styles.modalCardTablet]}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderTextBlock}>
+                <Text style={styles.modalTitle}>Search filters</Text>
+                <Text style={styles.modalSubtitle}>
+                  Choose dates, pickup city, car class, and budget in one
+                  focused view.
+                </Text>
+              </View>
+              <Pressable
+                style={styles.modalCloseButton}
+                onPress={closeFilters}
+                accessibilityLabel="Close filter modal"
+              >
+                <Ionicons name="close" size={22} color={palette.text} />
+              </Pressable>
+            </View>
+
+            <View style={styles.modalTabRow}>
+              {filterSections.map((section) => {
+                const isActive = activeFilterSection === section;
+                const labelMap: Record<FilterSection, string> = {
+                  dates: "Dates",
+                  location: "Location",
+                  type: "Car Type",
+                  price: "Price",
+                };
+
+                return (
+                  <Pressable
+                    key={section}
+                    style={[styles.modalTab, isActive && styles.modalTabActive]}
+                    onPress={() => setActiveFilterSection(section)}
+                  >
+                    <Text
+                      style={[
+                        styles.modalTabText,
+                        isActive && styles.modalTabTextActive,
+                      ]}
+                    >
+                      {labelMap[section]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <View style={styles.modalContent}>
+              {activeFilterSection === "dates" ? (
+                <View style={styles.filterGroup}>
+                  <View style={styles.modalSectionHeader}>
+                    <Text style={styles.modalSectionTitle}>Rental dates</Text>
+                    <Text style={styles.modalSectionMeta}>
+                      {tripLength} days selected
+                    </Text>
+                  </View>
+
+                  <View style={styles.dateSummaryRow}>
+                    <View style={styles.modalDateCard}>
+                      <Text style={styles.modalDateLabel}>From</Text>
+                      <Text style={styles.modalDateValue}>
+                        {formatDisplayDate(dateFrom)}
+                      </Text>
+                    </View>
+                    <View style={styles.modalDateCard}>
+                      <Text style={styles.modalDateLabel}>To</Text>
+                      <Text style={styles.modalDateValue}>
+                        {formatDisplayDate(dateTo)}
+                      </Text>
+                    </View>
+                    <View style={styles.modalTripCard}>
+                      <Text style={styles.modalTripValue}>{tripLength}</Text>
+                      <Text style={styles.modalTripLabel}>days</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.calendarCardModal}>
+                    <Calendar
+                      current={dateFrom}
+                      minDate={toDateKey(today)}
+                      onDayPress={handleDateSelect}
+                      markingType="period"
+                      markedDates={markedDates}
+                      enableSwipeMonths
+                      hideExtraDays={false}
+                      theme={{
+                        calendarBackground: "#FFFFFF",
+                        textSectionTitleColor: "#88A5D6",
+                        monthTextColor: "#15376C",
+                        textMonthFontWeight: "700",
+                        textDayFontWeight: "600",
+                        textDayHeaderFontWeight: "700",
+                        arrowColor: "#0F66EA",
+                        todayTextColor: "#0F66EA",
+                        dayTextColor: "#173057",
+                        textDisabledColor: "#C1CEE2",
+                      }}
+                      style={styles.calendar}
+                    />
+                  </View>
+                </View>
+              ) : null}
+
+              {activeFilterSection === "location" ? (
+                <View style={styles.filterGroup}>
+                  <View style={styles.modalSectionHeader}>
+                    <Text style={styles.modalSectionTitle}>
+                      Pickup location
+                    </Text>
+                    <Text style={styles.modalSectionMeta}>
+                      {activeLocationText}
+                    </Text>
+                  </View>
+                  <View style={styles.optionGrid}>
+                    {locations.map((location) => (
+                      <View
+                        key={location}
+                        style={[
+                          styles.optionCell,
+                          isTablet
+                            ? styles.optionCellTablet
+                            : styles.optionCellMobile,
+                        ]}
+                      >
+                        <FilterChip
+                          label={location}
+                          description={locationDescriptions[location]}
+                          icon={locationIcons[location]}
+                          selected={selectedLocation === location}
+                          onPress={() => setSelectedLocation(location)}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {activeFilterSection === "type" ? (
+                <View style={styles.filterGroup}>
+                  <View style={styles.modalSectionHeader}>
+                    <Text style={styles.modalSectionTitle}>Car type</Text>
+                    <Text style={styles.modalSectionMeta}>
+                      {activeTypeText}
+                    </Text>
+                  </View>
+                  <View style={styles.optionGrid}>
+                    {carTypes.map((type) => (
+                      <View
+                        key={type}
+                        style={[
+                          styles.optionCell,
+                          isTablet
+                            ? styles.optionCellTablet
+                            : styles.optionCellMobile,
+                        ]}
+                      >
+                        <FilterChip
+                          label={type}
+                          description={carTypeDescriptions[type]}
+                          icon={carTypeIcons[type]}
+                          selected={selectedType === type}
+                          onPress={() => setSelectedType(type)}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {activeFilterSection === "price" ? (
+                <View style={styles.filterGroup}>
+                  <View style={styles.modalSectionHeader}>
+                    <Text style={styles.modalSectionTitle}>Price range</Text>
+                    <Text style={styles.modalSectionMeta}>{selectedPrice}</Text>
+                  </View>
+                  <View style={styles.priceOptionStack}>
+                    {priceRanges.map((range) => (
+                      <FilterChip
+                        key={range.label}
+                        label={range.label}
+                        description={priceDescriptions[range.label]}
+                        icon="cash-outline"
+                        emphasis="price"
+                        selected={selectedPrice === range.label}
+                        onPress={() => setSelectedPrice(range.label)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.modalActionList}>
+              <Pressable style={styles.modalActionRow} onPress={clearFilters}>
+                <View style={styles.modalActionLead}>
+                  <View style={styles.modalActionIconWrap}>
+                    <Ionicons
+                      name="refresh-outline"
+                      size={18}
+                      color="#0F66EA"
+                    />
+                  </View>
+                  <View style={styles.modalActionTextBlock}>
+                    <Text style={styles.modalActionTitle}>
+                      Reset all filters
+                    </Text>
+                    <Text style={styles.modalActionSubtitle}>
+                      Clear dates, location, car type, and price selection.
+                    </Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#7C93B8" />
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Brands</Text>
+        <Text style={styles.sectionLink}>See All</Text>
+      </View>
+
+      <View style={styles.brandRow}>
+        {brands.map((brand) => (
+          <View key={brand.name} style={styles.brandItem}>
+            <View style={styles.brandCircle}>
+              <Text style={styles.brandMark}>{brand.mark}</Text>
+            </View>
+            <Text style={styles.brandName}>{brand.name}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.resultsHeader}>
+        <View>
+          <Text style={styles.sectionTitle}>Popular Car</Text>
+          <Text style={styles.resultsText}>
+            {filteredCars.length} results matching your filters
+          </Text>
+        </View>
+        <Pressable onPress={clearFilters}>
+          <Text style={styles.sectionLink}>See All</Text>
+        </Pressable>
+      </View>
+
+      <FlatList
+        key={listColumns}
+        data={filteredCars}
+        scrollEnabled={false}
+        keyExtractor={(item) => item.id}
+        numColumns={listColumns}
+        columnWrapperStyle={listColumns > 1 ? styles.columnWrapper : undefined}
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        renderItem={({ item }) => (
+          <View style={styles.listItemWrap}>
+            <CarCard
+              car={item}
+              onPress={() =>
+                router.push({ pathname: "/cars/[id]", params: { id: item.id } })
+              }
+            />
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>No cars match those filters.</Text>
+            <Text style={styles.emptyBody}>
+              Try another city, widen the price range, or clear your search.
+            </Text>
+          </View>
+        }
+      />
+    </AppShell>
+  );
+}
+
+const styles = StyleSheet.create({
+  heroPanel: {
+    backgroundColor: "#1976FF",
+    borderRadius: 28,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...shadows.blueHero,
+  },
+  heroLabel: {
+    color: "#BFD8FF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  heroLocationBlock: {
+    flex: 1,
+    gap: 4,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  heroLocation: {
+    color: palette.white,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  heroMeta: {
+    color: "#DDEBFF",
+    fontSize: 13,
+  },
+  heroIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  summaryStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  summaryPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+  },
+  summaryPillText: {
+    color: "#DDEBFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  searchShell: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: palette.white,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+  },
+  filterButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: palette.white,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(8, 22, 43, 0.38)",
+    justifyContent: "center",
+    padding: spacing.md,
+  },
+  modalScrim: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
+    backgroundColor: "#F8FBFF",
+    borderRadius: 30,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...shadows.card,
+  },
+  modalCardTablet: {
+    maxWidth: 760,
+  },
+  modalTitle: {
+    color: "#12315F",
+    fontSize: 24,
+    fontWeight: "800",
+    flexShrink: 1,
+  },
+  modalSubtitle: {
+    color: "#6F84A8",
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 4,
+    maxWidth: 420,
+    flexShrink: 1,
+  },
+  modalActionList: {
+    backgroundColor: palette.white,
+    borderRadius: 22,
+    overflow: "hidden",
+    ...shadows.softCard,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  modalHeaderTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  modalActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  modalActionLead: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  modalActionIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EAF3FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: palette.white,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.icon,
+  },
+  modalActionTextBlock: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  modalActionTitle: {
+    color: "#12315F",
+    fontSize: 15,
+    fontWeight: "800",
+    flexShrink: 1,
+  },
+  modalActionSubtitle: {
+    color: "#6F84A8",
+    fontSize: 12,
+    lineHeight: 18,
+    flexShrink: 1,
+  },
+  modalActionDivider: {
+    height: 1,
+    backgroundColor: "#E6EEF9",
+    marginHorizontal: spacing.md,
+  },
+  modalTabRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  modalTab: {
+    flex: 1,
+    minWidth: 96,
+    paddingVertical: 12,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: "#EAF3FF",
+    alignItems: "center",
+  },
+  modalTabActive: {
+    backgroundColor: "#0F66EA",
+  },
+  modalTabText: {
+    color: "#3869AC",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  modalTabTextActive: {
+    color: palette.white,
+  },
+  modalContent: {
+    minHeight: 420,
+    justifyContent: "flex-start",
+  },
+  modalSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    flexWrap: "wrap",
+  },
+  modalSectionTitle: {
+    color: "#12315F",
+    fontSize: 18,
+    fontWeight: "800",
+    flexShrink: 1,
+  },
+  modalSectionMeta: {
+    color: "#6F84A8",
+    fontSize: 13,
+    fontWeight: "700",
+    flexShrink: 1,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  sectionTitle: {
+    color: palette.text,
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  searchInput: {
+    color: palette.text,
+    fontSize: 15,
+    flex: 1,
+    paddingVertical: 0,
+  },
+  filterGroup: {
+    gap: spacing.sm,
+  },
+  filterGroupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    flexWrap: "wrap",
+  },
+  dateSummaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  dateSummaryCard: {
+    flex: 1,
+    minWidth: 128,
+    backgroundColor: "#EEF5FF",
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  modalDateCard: {
+    flex: 1,
+    minWidth: 128,
+    backgroundColor: "#EEF5FF",
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  dateSummaryLabel: {
+    color: "#D5E6FF",
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  modalDateLabel: {
+    color: "#6F84A8",
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  modalDateValue: {
+    color: "#12315F",
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 8,
+  },
+  dateSummaryValue: {
+    color: palette.white,
+    fontSize: 18,
+    fontWeight: "800",
+    marginTop: 8,
+  },
+  tripBadge: {
+    minWidth: 92,
+    backgroundColor: "rgba(10,44,94,0.32)",
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.16)",
+  },
+  tripBadgeValue: {
+    color: palette.white,
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  tripBadgeLabel: {
+    color: "#D5E6FF",
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  calendarCard: {
+    backgroundColor: palette.white,
+    borderRadius: 22,
+    padding: spacing.xs,
+    overflow: "hidden",
+  },
+  modalTripCard: {
+    minWidth: 92,
+    backgroundColor: "#0F66EA",
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTripValue: {
+    color: palette.white,
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  modalTripLabel: {
+    color: "#D6E6FF",
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  calendarCardModal: {
+    backgroundColor: palette.white,
+    borderRadius: 22,
+    padding: spacing.xs,
+    overflow: "hidden",
+    ...shadows.softCard,
+  },
+  calendar: {
+    borderRadius: 16,
+  },
+  filterLabel: {
+    color: palette.textMuted,
+    fontSize: 14,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  filterLabelOnBlue: {
+    color: "#EAF3FF",
+    fontSize: 13,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  filterGroupValue: {
+    color: "#D5E6FF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  optionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  optionCell: {
+    minWidth: 0,
+  },
+  optionCellMobile: {
+    width: "48%",
+  },
+  optionCellTablet: {
+    width: "31.5%",
+  },
+  priceOptionStack: {
+    gap: spacing.sm,
+  },
+  brandRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  brandItem: {
+    width: "22%",
+    minWidth: 72,
+    alignItems: "center",
+    gap: 8,
+  },
+  brandCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: palette.white,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.icon,
+  },
+  brandMark: {
+    color: palette.text,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  brandName: {
+    color: palette.text,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  resultsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: spacing.md,
+  },
+  resultsText: {
+    color: palette.textMuted,
+    fontSize: 14,
+    marginTop: 4,
+  },
+  sectionLink: {
+    color: "#3388FF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  filterHint: {
+    color: palette.textMuted,
+    fontSize: 13,
+  },
+  listContent: {
+    gap: 0,
+  },
+  columnWrapper: {
+    gap: spacing.md,
+  },
+  listItemWrap: {
+    flex: 1,
+  },
+  emptyState: {
+    backgroundColor: palette.white,
+    borderRadius: 24,
+    padding: spacing.xl,
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  emptyTitle: {
+    color: palette.text,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  emptyBody: {
+    color: palette.textMuted,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+});
