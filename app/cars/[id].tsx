@@ -24,6 +24,10 @@ const partnerByLocation = {
 
 const tabs = ["About", "Gallery", "Review"] as const;
 
+export function generateStaticParams() {
+  return cars.map((car) => ({ id: car.id }));
+}
+
 export default function CarDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isTablet } = useResponsive();
@@ -88,7 +92,7 @@ export default function CarDetailScreen() {
     <AppShell>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={[styles.screenWrap, isTablet && styles.screenWrapTablet]}>
+      <View style={styles.screenWrap}>
         <View style={styles.chromeRow}>
           <Pressable style={styles.chromeButton} onPress={handleBackPress}>
             <Ionicons name="chevron-back" size={20} color={palette.text} />
@@ -291,12 +295,7 @@ export default function CarDetailScreen() {
 const styles = StyleSheet.create({
   screenWrap: {
     width: "100%",
-    maxWidth: 620,
-    alignSelf: "center",
-    gap: spacing.md,
-  },
-  screenWrapTablet: {
-    maxWidth: 680,
+    gap: spacing.lg,
   },
   chromeRow: {
     flexDirection: "row",
@@ -323,8 +322,8 @@ const styles = StyleSheet.create({
   },
   galleryCard: {
     backgroundColor: palette.white,
-    borderRadius: 28,
-    padding: spacing.lg,
+    borderRadius: 22,
+    padding: spacing.md,
     gap: spacing.md,
     ...shadows.card,
   },
@@ -381,8 +380,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: palette.text,
-    fontSize: 29,
-    lineHeight: 35,
+    fontSize: 24,
+    lineHeight: 31,
     fontWeight: "800",
   },
   categoryBadge: {
@@ -435,14 +434,14 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     backgroundColor: palette.white,
-    borderRadius: 24,
-    padding: spacing.lg,
+    borderRadius: 22,
+    padding: spacing.md,
     gap: spacing.md,
     ...shadows.softCard,
   },
   sectionTitle: {
     color: palette.text,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "800",
   },
   partnerRow: {
@@ -531,8 +530,8 @@ const styles = StyleSheet.create({
   },
   galleryGridCard: {
     backgroundColor: palette.white,
-    borderRadius: 24,
-    padding: spacing.lg,
+    borderRadius: 22,
+    padding: spacing.md,
     ...shadows.softCard,
   },
   galleryGrid: {
@@ -558,8 +557,8 @@ const styles = StyleSheet.create({
   },
   bookingDock: {
     backgroundColor: palette.white,
-    borderRadius: 24,
-    padding: spacing.lg,
+    borderRadius: 22,
+    padding: spacing.md,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
