@@ -18,7 +18,8 @@ const resources = {
       searchPlaceholder: "Search cars, locations, or type",
       filters: "Filters",
       searchFilters: "Search filters",
-      searchFiltersSubtitle: "Choose dates, pickup city, car class, and budget in one focused view.",
+      searchFiltersSubtitle:
+        "Choose dates, pickup city, car class, and budget in one focused view.",
       reset: "Reset",
       showCars: "Show {{count}} cars",
       resultsMatching: "{{count}} results matching your filters",
@@ -43,8 +44,7 @@ const resources = {
       searchPlaceholder: "ကား၊ နေရာ သို့မဟုတ် အမျိုးအစား ရှာဖွေပါ",
       filters: "စစ်ထုတ်မှုများ",
       searchFilters: "ရှာဖွေမှု စစ်ထုတ်မှုများ",
-      searchFiltersSubtitle:
-        "ရက်စွဲ၊ ကားယူမည့်မြို့၊ ကားအမျိုးအစားနှင့် ဈေးနှုန်းကို တစ်နေရာတည်းတွင် ရွေးချယ်ပါ။",
+      searchFiltersSubtitle: "ရက်စွဲ၊ ကားယူမည့်မြို့၊ ကားအမျိုးအစားနှင့် ဈေးနှုန်းကို တစ်နေရာတည်းတွင် ရွေးချယ်ပါ။",
       reset: "ပြန်လည်သတ်မှတ်ရန်",
       showCars: "ကား {{count}} စီးကို ပြပါ",
       resultsMatching: "သင်၏စစ်ထုတ်မှုနှင့် ကိုက်ညီသော ရလဒ် {{count}} ခု",

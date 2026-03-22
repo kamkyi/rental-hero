@@ -172,28 +172,23 @@ function buildMarkedRange(startDate?: string, endDate?: string) {
 }
 
 export default function CarsTabScreen() {
-  const { isCompact, isMobile, isTablet, listColumns, width, contentWidth } =
-    useResponsive();
+  const { isCompact, isMobile, isTablet, listColumns, width, contentWidth } = useResponsive();
   const { t } = useTranslation();
   const stickyProgress = useRef(new Animated.Value(0)).current;
   const stickyVisibleRef = useRef(false);
   const [search, setSearch] = useState("");
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isStickyFiltersVisible, setIsStickyFiltersVisible] = useState(false);
-  const [activeFilterSection, setActiveFilterSection] =
-    useState<FilterSection>("dates");
-  const [selectedLocation, setSelectedLocation] =
-    useState<(typeof locations)[number]>("All");
-  const [selectedType, setSelectedType] =
-    useState<(typeof carTypes)[number]>("All");
+  const [activeFilterSection, setActiveFilterSection] = useState<FilterSection>("dates");
+  const [selectedLocation, setSelectedLocation] = useState<(typeof locations)[number]>("All");
+  const [selectedType, setSelectedType] = useState<(typeof carTypes)[number]>("All");
   const [selectedPrice, setSelectedPrice] = useState(priceRanges[0].label);
   const [dateFrom, setDateFrom] = useState(toDateKey(addDays(today, 2)));
   const [dateTo, setDateTo] = useState(toDateKey(addDays(today, 5)));
 
   const filteredCars = useMemo(() => {
     const activeRange =
-      priceRanges.find((range) => range.label === selectedPrice) ??
-      priceRanges[0];
+      priceRanges.find((range) => range.label === selectedPrice) ?? priceRanges[0];
     const normalized = search.trim().toLowerCase();
 
     return cars.filter((car) => {
@@ -202,29 +197,20 @@ export default function CarsTabScreen() {
         car.name.toLowerCase().includes(normalized) ||
         car.type.toLowerCase().includes(normalized) ||
         car.location.toLowerCase().includes(normalized);
-      const matchesLocation =
-        selectedLocation === "All" || car.location === selectedLocation;
+      const matchesLocation = selectedLocation === "All" || car.location === selectedLocation;
       const matchesType = selectedType === "All" || car.type === selectedType;
-      const matchesPrice =
-        car.pricePerDay >= activeRange.min &&
-        car.pricePerDay <= activeRange.max;
+      const matchesPrice = car.pricePerDay >= activeRange.min && car.pricePerDay <= activeRange.max;
 
       return matchesSearch && matchesLocation && matchesType && matchesPrice;
     });
   }, [search, selectedLocation, selectedType, selectedPrice]);
 
   const displayLocation =
-    selectedLocation === "All"
-      ? "Bangkok, Thailand"
-      : `${selectedLocation}, Thailand`;
+    selectedLocation === "All" ? "Bangkok, Thailand" : `${selectedLocation}, Thailand`;
 
-  const activeLocationText =
-    selectedLocation === "All" ? "Any pickup city" : selectedLocation;
-  const activeTypeText =
-    selectedType === "All" ? "Any vehicle class" : selectedType;
-  const dateSummaryText = `${formatDisplayDate(dateFrom)} - ${formatDisplayDate(
-    dateTo,
-  )}`;
+  const activeLocationText = selectedLocation === "All" ? "Any pickup city" : selectedLocation;
+  const activeTypeText = selectedType === "All" ? "Any vehicle class" : selectedType;
+  const dateSummaryText = `${formatDisplayDate(dateFrom)} - ${formatDisplayDate(dateTo)}`;
   const activeFilterCount = [
     search.trim().length > 0,
     selectedLocation !== "All",
@@ -232,18 +218,14 @@ export default function CarsTabScreen() {
     selectedPrice !== priceRanges[0].label,
   ].filter(Boolean).length;
 
-  const markedDates = useMemo(
-    () => buildMarkedRange(dateFrom, dateTo),
-    [dateFrom, dateTo],
-  );
+  const markedDates = useMemo(() => buildMarkedRange(dateFrom, dateTo), [dateFrom, dateTo]);
 
   const tripLength = useMemo(() => {
     if (!dateFrom || !dateTo) {
       return 0;
     }
 
-    const difference =
-      parseDateKey(dateTo).getTime() - parseDateKey(dateFrom).getTime();
+    const difference = parseDateKey(dateTo).getTime() - parseDateKey(dateFrom).getTime();
     return Math.max(1, Math.ceil(difference / (1000 * 60 * 60 * 24)));
   }, [dateFrom, dateTo]);
 
@@ -273,10 +255,7 @@ export default function CarsTabScreen() {
   };
 
   const blurActiveWebElement = () => {
-    if (
-      typeof document !== "undefined" &&
-      document.activeElement instanceof HTMLElement
-    ) {
+    if (typeof document !== "undefined" && document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
   };
@@ -321,10 +300,12 @@ export default function CarsTabScreen() {
   };
 
   const heroHorizontalOffset = (width - contentWidth) / 2 + spacing.md;
-  const fullBleedHeroStyle = {
-    width,
-    marginLeft: -heroHorizontalOffset,
-  };
+  const fullBleedHeroStyle = isMobile
+    ? styles.heroStageMobileBleed
+    : {
+        width,
+        marginLeft: -heroHorizontalOffset,
+      };
   const stickyTranslateY = stickyProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [-20, 0],
@@ -340,23 +321,17 @@ export default function CarsTabScreen() {
         <View style={styles.filterGroup}>
           <View style={styles.modalSectionHeader}>
             <Text style={styles.modalSectionTitle}>Rental dates</Text>
-            <Text style={styles.modalSectionMeta}>
-              {tripLength} days selected
-            </Text>
+            <Text style={styles.modalSectionMeta}>{tripLength} days selected</Text>
           </View>
 
           <View style={styles.dateSummaryRow}>
             <View style={styles.modalDateCard}>
               <Text style={styles.modalDateLabel}>From</Text>
-              <Text style={styles.modalDateValue}>
-                {formatDisplayDate(dateFrom)}
-              </Text>
+              <Text style={styles.modalDateValue}>{formatDisplayDate(dateFrom)}</Text>
             </View>
             <View style={styles.modalDateCard}>
               <Text style={styles.modalDateLabel}>To</Text>
-              <Text style={styles.modalDateValue}>
-                {formatDisplayDate(dateTo)}
-              </Text>
+              <Text style={styles.modalDateValue}>{formatDisplayDate(dateTo)}</Text>
             </View>
             <View style={styles.modalTripCard}>
               <Text style={styles.modalTripValue}>{tripLength}</Text>
@@ -494,37 +469,17 @@ export default function CarsTabScreen() {
             styles.stickyBarWrap,
             {
               opacity: stickyProgress,
-              transform: [
-                { translateY: stickyTranslateY },
-                { scale: stickyScale },
-              ],
+              transform: [{ translateY: stickyTranslateY }, { scale: stickyScale }],
             },
           ]}
         >
-          <View
-            style={[
-              styles.stickyBarShell,
-              { maxWidth: contentWidth + spacing.md * 2 },
-            ]}
-          >
+          <View style={[styles.stickyBarShell, { maxWidth: contentWidth }]}>
             <View style={[styles.stickyBar, isTablet && styles.stickyBarTablet]}>
-              <View
-                style={[
-                  styles.stickySearchRow,
-                  isMobile && styles.stickySearchRowMobile,
-                ]}
-              >
+              <View style={[styles.stickySearchRow, isMobile && styles.stickySearchRowMobile]}>
                 <View
-                  style={[
-                    styles.stickySearchShell,
-                    isCompact && styles.stickySearchShellCompact,
-                  ]}
+                  style={[styles.stickySearchShell, isCompact && styles.stickySearchShellCompact]}
                 >
-                  <Ionicons
-                    name="search-outline"
-                    size={17}
-                    color={palette.samsungBlueSoft}
-                  />
+                  <Ionicons name="search-outline" size={17} color={palette.samsungBlueSoft} />
                   <TextInput
                     value={search}
                     onChangeText={setSearch}
@@ -535,20 +490,11 @@ export default function CarsTabScreen() {
                 </View>
 
                 <Pressable
-                  style={[
-                    styles.stickyFilterButton,
-                    isMobile && styles.stickyFilterButtonMobile,
-                  ]}
+                  style={[styles.stickyFilterButton, isMobile && styles.stickyFilterButtonMobile]}
                   onPress={() => openFilterSection("dates")}
                 >
-                  <Ionicons
-                    name="options-outline"
-                    size={17}
-                    color={palette.white}
-                  />
-                  <Text style={styles.stickyFilterButtonText}>
-                    {t("filters")}
-                  </Text>
+                  <Ionicons name="options-outline" size={17} color={palette.white} />
+                  <Text style={styles.stickyFilterButtonText}>{t("filters")}</Text>
                 </Pressable>
               </View>
 
@@ -557,28 +503,16 @@ export default function CarsTabScreen() {
                   style={styles.stickyQuickPill}
                   onPress={() => openFilterSection("location")}
                 >
-                  <Ionicons
-                    name="location-outline"
-                    size={14}
-                    color={palette.samsungBlue}
-                  />
-                  <Text style={styles.stickyQuickPillText}>
-                    {activeLocationText}
-                  </Text>
+                  <Ionicons name="location-outline" size={14} color={palette.samsungBlue} />
+                  <Text style={styles.stickyQuickPillText}>{activeLocationText}</Text>
                 </Pressable>
 
                 <Pressable
                   style={styles.stickyQuickPill}
                   onPress={() => openFilterSection("dates")}
                 >
-                  <Ionicons
-                    name="calendar-outline"
-                    size={14}
-                    color={palette.samsungBlue}
-                  />
-                  <Text style={styles.stickyQuickPillText}>
-                    {dateSummaryText}
-                  </Text>
+                  <Ionicons name="calendar-outline" size={14} color={palette.samsungBlue} />
+                  <Text style={styles.stickyQuickPillText}>{dateSummaryText}</Text>
                 </Pressable>
 
                 {isTablet ? (
@@ -586,14 +520,8 @@ export default function CarsTabScreen() {
                     style={styles.stickyQuickPill}
                     onPress={() => openFilterSection("type")}
                   >
-                    <Ionicons
-                      name="car-outline"
-                      size={14}
-                      color={palette.samsungBlue}
-                    />
-                    <Text style={styles.stickyQuickPillText}>
-                      {activeTypeText}
-                    </Text>
+                    <Ionicons name="car-outline" size={14} color={palette.samsungBlue} />
+                    <Text style={styles.stickyQuickPillText}>{activeTypeText}</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -614,9 +542,7 @@ export default function CarsTabScreen() {
         >
           <View style={styles.heroBannerShade} />
           <View style={styles.heroBannerContent}>
-            <Text style={styles.heroBannerEyebrow}>
-              {t("heroLocationLabel")}
-            </Text>
+            <Text style={styles.heroBannerEyebrow}>{t("heroLocationLabel")}</Text>
             <Text style={styles.heroBannerTitle}>{displayLocation}</Text>
             <Text style={styles.heroBannerMeta}>
               {t("carsAvailableNow", { count: filteredCars.length })}
@@ -629,20 +555,14 @@ export default function CarsTabScreen() {
             <View style={styles.heroLocationBlock}>
               <Text style={styles.heroLabel}>{t("searchPlaceholder")}</Text>
               <View style={styles.locationRow}>
-                <Ionicons
-                  name="location"
-                  size={14}
-                  color={palette.samsungBlueSoft}
-                />
+                <Ionicons name="location" size={14} color={palette.samsungBlueSoft} />
                 <Text style={styles.heroLocation}>{displayLocation}</Text>
               </View>
             </View>
 
             {activeFilterCount > 0 ? (
               <View style={styles.activeFilterPill}>
-                <Text style={styles.activeFilterPillText}>
-                  {activeFilterCount} active
-                </Text>
+                <Text style={styles.activeFilterPillText}>{activeFilterCount} active</Text>
               </View>
             ) : null}
           </View>
@@ -663,42 +583,21 @@ export default function CarsTabScreen() {
               style={[styles.filterButton, isMobile && styles.filterButtonMobile]}
               onPress={openFilters}
             >
-              <Ionicons
-                name="options-outline"
-                size={18}
-                color={palette.white}
-              />
+              <Ionicons name="options-outline" size={18} color={palette.white} />
               <Text style={styles.filterButtonText}>{t("filters")}</Text>
             </Pressable>
           </View>
 
           <View style={styles.summaryStrip}>
-            <Pressable
-              style={styles.summaryPill}
-              onPress={() => openFilterSection("dates")}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={15}
-                color={palette.samsungBlue}
-              />
+            <Pressable style={styles.summaryPill} onPress={() => openFilterSection("dates")}>
+              <Ionicons name="calendar-outline" size={15} color={palette.samsungBlue} />
               <Text style={styles.summaryPillText}>{dateSummaryText}</Text>
             </Pressable>
-            <Pressable
-              style={styles.summaryPill}
-              onPress={() => openFilterSection("location")}
-            >
-              <Ionicons
-                name="location-outline"
-                size={15}
-                color={palette.samsungBlue}
-              />
+            <Pressable style={styles.summaryPill} onPress={() => openFilterSection("location")}>
+              <Ionicons name="location-outline" size={15} color={palette.samsungBlue} />
               <Text style={styles.summaryPillText}>{activeLocationText}</Text>
             </Pressable>
-            <Pressable
-              style={styles.summaryPill}
-              onPress={() => openFilterSection("type")}
-            >
+            <Pressable style={styles.summaryPill} onPress={() => openFilterSection("type")}>
               <Ionicons name="car-outline" size={15} color={palette.samsungBlue} />
               <Text style={styles.summaryPillText}>{activeTypeText}</Text>
             </Pressable>
@@ -706,24 +605,15 @@ export default function CarsTabScreen() {
         </View>
       </View>
 
-      <Modal
-        animationType="fade"
-        transparent
-        visible={isFiltersOpen}
-        onRequestClose={closeFilters}
-      >
-        <View
-          style={[styles.modalBackdrop, isTablet && styles.modalBackdropTablet]}
-        >
+      <Modal animationType="fade" transparent visible={isFiltersOpen} onRequestClose={closeFilters}>
+        <View style={[styles.modalBackdrop, isTablet && styles.modalBackdropTablet]}>
           <Pressable style={styles.modalScrim} onPress={closeFilters} />
           <View style={[styles.modalCard, isTablet && styles.modalCardTablet]}>
             {!isTablet ? <View style={styles.modalHandle} /> : null}
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderTextBlock}>
                 <Text style={styles.modalTitle}>{t("searchFilters")}</Text>
-                <Text style={styles.modalSubtitle}>
-                  {t("searchFiltersSubtitle")}
-                </Text>
+                <Text style={styles.modalSubtitle}>{t("searchFiltersSubtitle")}</Text>
               </View>
               <Pressable
                 style={styles.modalCloseButton}
@@ -742,18 +632,10 @@ export default function CarsTabScreen() {
                   return (
                     <Pressable
                       key={section}
-                      style={[
-                        styles.modalTab,
-                        isActive && styles.modalTabActive,
-                      ]}
+                      style={[styles.modalTab, isActive && styles.modalTabActive]}
                       onPress={() => setActiveFilterSection(section)}
                     >
-                      <Text
-                        style={[
-                          styles.modalTabText,
-                          isActive && styles.modalTabTextActive,
-                        ]}
-                      >
+                      <Text style={[styles.modalTabText, isActive && styles.modalTabTextActive]}>
                         {filterSectionLabels[section]}
                       </Text>
                     </Pressable>
@@ -833,9 +715,7 @@ export default function CarsTabScreen() {
           <View style={styles.listItemWrap}>
             <CarCard
               car={item}
-              onPress={() =>
-                router.push({ pathname: "/cars/[id]", params: { id: item.id } })
-              }
+              onPress={() => router.push({ pathname: "/cars/[id]", params: { id: item.id } })}
             />
           </View>
         )}
@@ -946,6 +826,9 @@ const styles = StyleSheet.create({
     gap: 0,
     marginTop: -spacing.lg,
     marginBottom: spacing.sm,
+  },
+  heroStageMobileBleed: {
+    marginHorizontal: -spacing.md,
   },
   heroBanner: {
     minHeight: 260,

@@ -23,9 +23,7 @@ export function TopNavBar({
 }: TopNavBarProps) {
   const { t, i18n } = useTranslation();
   const { isMobile } = useResponsive();
-  const [openMenu, setOpenMenu] = useState<"location" | "language" | null>(
-    null,
-  );
+  const [openMenu, setOpenMenu] = useState<"location" | "language" | null>(null);
 
   const activeLanguage = (i18n.language as LanguageCode) || "en";
 
@@ -50,32 +48,16 @@ export function TopNavBar({
             ]}
           >
             <Pressable
-              style={[
-                styles.dropdownButton,
-                isMobile && styles.dropdownButtonMobile,
-              ]}
+              style={[styles.dropdownButton, isMobile && styles.dropdownButtonMobile]}
               onPress={() => setOpenMenu("location")}
             >
-              <Ionicons
-                name="location-outline"
-                size={16}
-                color={palette.samsungBlue}
-              />
+              <Ionicons name="location-outline" size={16} color={palette.samsungBlue} />
               <Text style={styles.dropdownText}>{selectedLocation}</Text>
-              <Ionicons
-                name="chevron-down"
-                size={14}
-                color={palette.samsungBlueSoft}
-              />
+              <Ionicons name="chevron-down" size={14} color={palette.samsungBlueSoft} />
             </Pressable>
 
             {openMenu === "location" ? (
-              <View
-                style={[
-                  styles.dropdownMenu,
-                  isMobile && styles.dropdownMenuMobile,
-                ]}
-              >
+              <View style={[styles.dropdownMenu, isMobile && styles.dropdownMenuMobile]}>
                 {locationOptions.map((location) => (
                   <Pressable
                     key={location}
@@ -100,43 +82,23 @@ export function TopNavBar({
             ]}
           >
             <Pressable
-              style={[
-                styles.dropdownButton,
-                isMobile && styles.dropdownButtonMobile,
-              ]}
+              style={[styles.dropdownButton, isMobile && styles.dropdownButtonMobile]}
               onPress={() => setOpenMenu("language")}
             >
-              <Ionicons
-                name="language-outline"
-                size={16}
-                color={palette.samsungBlue}
-              />
-              <Text style={styles.dropdownText}>
-                {t(`languageNames.${activeLanguage}`)}
-              </Text>
-              <Ionicons
-                name="chevron-down"
-                size={14}
-                color={palette.samsungBlueSoft}
-              />
+              <Ionicons name="language-outline" size={16} color={palette.samsungBlue} />
+              <Text style={styles.dropdownText}>{t(`languageNames.${activeLanguage}`)}</Text>
+              <Ionicons name="chevron-down" size={14} color={palette.samsungBlueSoft} />
             </Pressable>
 
             {openMenu === "language" ? (
-              <View
-                style={[
-                  styles.dropdownMenu,
-                  isMobile && styles.dropdownMenuMobile,
-                ]}
-              >
+              <View style={[styles.dropdownMenu, isMobile && styles.dropdownMenuMobile]}>
                 {(["en", "my", "th"] as const).map((language) => (
                   <Pressable
                     key={language}
                     style={styles.dropdownOption}
                     onPress={() => changeLanguage(language)}
                   >
-                    <Text style={styles.dropdownOptionText}>
-                      {t(`languageNames.${language}`)}
-                    </Text>
+                    <Text style={styles.dropdownOptionText}>{t(`languageNames.${language}`)}</Text>
                   </Pressable>
                 ))}
               </View>

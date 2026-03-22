@@ -37,10 +37,7 @@ export function AppShell({
         <ScrollView
           showsVerticalScrollIndicator={false}
           {...scrollViewProps}
-          contentContainerStyle={[
-            styles.scrollContent,
-            scrollViewProps?.contentContainerStyle,
-          ]}
+          contentContainerStyle={[styles.scrollContent, scrollViewProps?.contentContainerStyle]}
         >
           {content}
         </ScrollView>

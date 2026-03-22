@@ -215,10 +215,7 @@ export default function CarDetailScreen() {
                 <Image
                   key={`${image}-gallery-${index}`}
                   source={{ uri: image }}
-                  style={[
-                    styles.galleryGridImage,
-                    isMobile && styles.galleryGridImageMobile,
-                  ]}
+                  style={[styles.galleryGridImage, isMobile && styles.galleryGridImageMobile]}
                   resizeMode="cover"
                 />
               ))}

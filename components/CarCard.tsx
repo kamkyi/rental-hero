@@ -16,37 +16,21 @@ export function CarCard({ car, onPress }: CarCardProps) {
   const { isCompact, isMobile } = useResponsive();
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.card, isCompact && styles.cardCompact]}
-    >
+    <Pressable onPress={onPress} style={[styles.card, isCompact && styles.cardCompact]}>
       <View style={styles.imageWrap}>
         <View style={styles.mediaMetaRow}>
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>{car.type}</Text>
           </View>
           <View style={styles.favoriteButton}>
-            <Ionicons
-              name="heart-outline"
-              size={16}
-              color={palette.samsungBlue}
-            />
+            <Ionicons name="heart-outline" size={16} color={palette.samsungBlue} />
           </View>
         </View>
 
-        <Image
-          source={{ uri: car.image }}
-          style={styles.image}
-          resizeMode="contain"
-        />
+        <Image source={{ uri: car.image }} style={styles.image} resizeMode="contain" />
 
         <View style={[styles.imageBadgeRow, isCompact && styles.imageBadgeRowCompact]}>
-          <View
-            style={[
-              styles.insuranceBadge,
-              isCompact && styles.insuranceBadgeCompact,
-            ]}
-          >
+          <View style={[styles.insuranceBadge, isCompact && styles.insuranceBadgeCompact]}>
             <Ionicons name="shield-checkmark" size={13} color={palette.white} />
             <Text style={styles.insuranceBadgeText}>{t("insurance")}</Text>
           </View>
@@ -59,54 +43,34 @@ export function CarCard({ car, onPress }: CarCardProps) {
       </View>
 
       <View style={styles.body}>
-        <View
-          style={[styles.titlePriceRow, isMobile && styles.titlePriceRowMobile]}
-        >
+        <View style={[styles.titlePriceRow, isMobile && styles.titlePriceRowMobile]}>
           <View style={styles.titleBlock}>
             <Text style={styles.name} numberOfLines={1}>
               {car.name}
             </Text>
             <View style={styles.locationMetaRow}>
-              <Ionicons
-                name="location-outline"
-                size={14}
-                color={palette.textMuted}
-              />
+              <Ionicons name="location-outline" size={14} color={palette.textMuted} />
               <Text style={styles.meta}>{car.location}</Text>
             </View>
           </View>
 
           <View style={[styles.priceBlock, isMobile && styles.priceBlockMobile]}>
-            <Text style={styles.price}>
-              ฿{car.pricePerDay.toLocaleString()}
-            </Text>
+            <Text style={styles.price}>฿{car.pricePerDay.toLocaleString()}</Text>
             <Text style={styles.priceUnit}>per day</Text>
           </View>
         </View>
 
         <View style={styles.specRow}>
           <View style={styles.specItem}>
-            <Ionicons
-              name="settings-outline"
-              size={14}
-              color={palette.samsungBlue}
-            />
+            <Ionicons name="settings-outline" size={14} color={palette.samsungBlue} />
             <Text style={styles.specText}>{car.transmission}</Text>
           </View>
           <View style={styles.specItem}>
-            <Ionicons
-              name="flash-outline"
-              size={14}
-              color={palette.samsungBlue}
-            />
+            <Ionicons name="flash-outline" size={14} color={palette.samsungBlue} />
             <Text style={styles.specText}>{car.fuel}</Text>
           </View>
           <View style={styles.specItem}>
-            <Ionicons
-              name="people-outline"
-              size={14}
-              color={palette.samsungBlue}
-            />
+            <Ionicons name="people-outline" size={14} color={palette.samsungBlue} />
             <Text style={styles.specText}>{car.seats} Seats</Text>
           </View>
         </View>

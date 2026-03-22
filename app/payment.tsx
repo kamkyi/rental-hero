@@ -63,13 +63,7 @@ export default function PaymentScreen() {
             />
           </View>
 
-          <View
-            style={[
-              styles.row,
-              styles.fieldRow,
-              isMobile && styles.fieldRowMobile,
-            ]}
-          >
+          <View style={[styles.row, styles.fieldRow, isMobile && styles.fieldRowMobile]}>
             <View style={[styles.fieldGroup, styles.rowField]}>
               <Text style={styles.label}>Expiry</Text>
               <TextInput
@@ -114,30 +108,15 @@ export default function PaymentScreen() {
 
           {car ? (
             <>
-              <View
-                style={[
-                  styles.summaryLine,
-                  isMobile && styles.summaryLineMobile,
-                ]}
-              >
+              <View style={[styles.summaryLine, isMobile && styles.summaryLineMobile]}>
                 <Text style={styles.summaryKey}>Location</Text>
                 <Text style={styles.summaryValue}>{car.location}</Text>
               </View>
-              <View
-                style={[
-                  styles.summaryLine,
-                  isMobile && styles.summaryLineMobile,
-                ]}
-              >
+              <View style={[styles.summaryLine, isMobile && styles.summaryLineMobile]}>
                 <Text style={styles.summaryKey}>Category</Text>
                 <Text style={styles.summaryValue}>{car.type}</Text>
               </View>
-              <View
-                style={[
-                  styles.summaryLine,
-                  isMobile && styles.summaryLineMobile,
-                ]}
-              >
+              <View style={[styles.summaryLine, isMobile && styles.summaryLineMobile]}>
                 <Text style={styles.summaryKey}>Daily price</Text>
                 <Text style={styles.summaryValue}>฿{car.pricePerDay.toLocaleString()}</Text>
               </View>
