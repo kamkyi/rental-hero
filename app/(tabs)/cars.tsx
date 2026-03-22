@@ -1,20 +1,28 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
+  Animated,
+  Easing,
   FlatList,
+  ImageBackground,
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { Calendar, DateData } from "react-native-calendars";
+import { Calendar, type DateData } from "react-native-calendars";
 
 import { AppShell } from "@/components/AppShell";
 import { CarCard } from "@/components/CarCard";
 import { FilterChip } from "@/components/FilterChip";
+import { TopNavBar } from "@/components/TopNavBar";
 import { palette, radius, shadows, spacing } from "@/constants/theme";
 import { cars, carTypes, locations } from "@/data/cars";
 import { useResponsive } from "@/hooks/useResponsive";
@@ -73,15 +81,18 @@ const priceDescriptions: Record<string, string> = {
   "Above ฿3,000": "Premium and flagship vehicles",
 };
 
-const brands = [
-  { name: "BMW", mark: "B" },
-  { name: "Toyota", mark: "T" },
-  { name: "Mercedes", mark: "M" },
-  { name: "Tesla", mark: "T" },
-];
+const heroImageUri =
+  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2200&q=80";
 
 const filterSections = ["dates", "location", "type", "price"] as const;
 type FilterSection = (typeof filterSections)[number];
+
+const filterSectionLabels: Record<FilterSection, string> = {
+  dates: "Dates",
+  location: "Location",
+  type: "Car Type",
+  price: "Price",
+};
 
 const today = new Date();
 
@@ -124,7 +135,7 @@ function buildMarkedRange(startDate?: string, endDate?: string) {
       [startDate]: {
         startingDay: true,
         endingDay: true,
-        color: "#0F66EA",
+        color: palette.samsungBlue,
         textColor: "#FFFFFF",
       },
     };
@@ -150,7 +161,7 @@ function buildMarkedRange(startDate?: string, endDate?: string) {
     marks[key] = {
       startingDay: isFirst,
       endingDay: isLast,
-      color: isFirst || isLast ? "#0F66EA" : "#DCEBFF",
+      color: isFirst || isLast ? palette.samsungBlue : palette.samsungBlueTint,
       textColor: isFirst || isLast ? "#FFFFFF" : "#16478A",
     };
 
@@ -161,9 +172,14 @@ function buildMarkedRange(startDate?: string, endDate?: string) {
 }
 
 export default function CarsTabScreen() {
-  const { isTablet, listColumns } = useResponsive();
+  const { isCompact, isMobile, isTablet, listColumns, width, contentWidth } =
+    useResponsive();
+  const { t } = useTranslation();
+  const stickyProgress = useRef(new Animated.Value(0)).current;
+  const stickyVisibleRef = useRef(false);
   const [search, setSearch] = useState("");
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [isStickyFiltersVisible, setIsStickyFiltersVisible] = useState(false);
   const [activeFilterSection, setActiveFilterSection] =
     useState<FilterSection>("dates");
   const [selectedLocation, setSelectedLocation] =
@@ -206,6 +222,15 @@ export default function CarsTabScreen() {
     selectedLocation === "All" ? "Any pickup city" : selectedLocation;
   const activeTypeText =
     selectedType === "All" ? "Any vehicle class" : selectedType;
+  const dateSummaryText = `${formatDisplayDate(dateFrom)} - ${formatDisplayDate(
+    dateTo,
+  )}`;
+  const activeFilterCount = [
+    search.trim().length > 0,
+    selectedLocation !== "All",
+    selectedType !== "All",
+    selectedPrice !== priceRanges[0].label,
+  ].filter(Boolean).length;
 
   const markedDates = useMemo(
     () => buildMarkedRange(dateFrom, dateTo),
@@ -262,71 +287,421 @@ export default function CarsTabScreen() {
     setIsFiltersOpen(true);
   };
 
+  const openFilterSection = (section: FilterSection) => {
+    blurActiveWebElement();
+    setActiveFilterSection(section);
+    setIsFiltersOpen(true);
+  };
+
   const closeFilters = () => {
     blurActiveWebElement();
     setIsFiltersOpen(false);
   };
 
-  return (
-    <AppShell>
-      <View style={styles.heroPanel}>
-        <Text style={styles.heroLabel}>Location</Text>
+  const setStickyFiltersVisible = (nextVisible: boolean) => {
+    if (stickyVisibleRef.current === nextVisible) {
+      return;
+    }
 
-        <View style={styles.heroTopRow}>
-          <View style={styles.heroLocationBlock}>
-            <View style={styles.locationRow}>
-              <Ionicons name="location" size={14} color="#DDEBFF" />
-              <Text style={styles.heroLocation}>{displayLocation}</Text>
+    stickyVisibleRef.current = nextVisible;
+    setIsStickyFiltersVisible(nextVisible);
+
+    Animated.timing(stickyProgress, {
+      toValue: nextVisible ? 1 : 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const yOffset = event.nativeEvent.contentOffset.y;
+    const stickyRevealOffset = isTablet ? 250 : 190;
+    setStickyFiltersVisible(yOffset > stickyRevealOffset);
+  };
+
+  const heroHorizontalOffset = (width - contentWidth) / 2 + spacing.md;
+  const fullBleedHeroStyle = {
+    width,
+    marginLeft: -heroHorizontalOffset,
+  };
+  const stickyTranslateY = stickyProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-20, 0],
+  });
+  const stickyScale = stickyProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.98, 1],
+  });
+
+  const renderFilterSection = (section: FilterSection) => {
+    if (section === "dates") {
+      return (
+        <View style={styles.filterGroup}>
+          <View style={styles.modalSectionHeader}>
+            <Text style={styles.modalSectionTitle}>Rental dates</Text>
+            <Text style={styles.modalSectionMeta}>
+              {tripLength} days selected
+            </Text>
+          </View>
+
+          <View style={styles.dateSummaryRow}>
+            <View style={styles.modalDateCard}>
+              <Text style={styles.modalDateLabel}>From</Text>
+              <Text style={styles.modalDateValue}>
+                {formatDisplayDate(dateFrom)}
+              </Text>
             </View>
-            <Text style={styles.heroMeta}>
-              {filteredCars.length} cars available now
+            <View style={styles.modalDateCard}>
+              <Text style={styles.modalDateLabel}>To</Text>
+              <Text style={styles.modalDateValue}>
+                {formatDisplayDate(dateTo)}
+              </Text>
+            </View>
+            <View style={styles.modalTripCard}>
+              <Text style={styles.modalTripValue}>{tripLength}</Text>
+              <Text style={styles.modalTripLabel}>days</Text>
+            </View>
+          </View>
+
+          <View style={styles.calendarCardModal}>
+            <Calendar
+              current={dateFrom}
+              minDate={toDateKey(today)}
+              onDayPress={handleDateSelect}
+              markingType="period"
+              markedDates={markedDates}
+              enableSwipeMonths
+              hideExtraDays={false}
+              theme={{
+                calendarBackground: "#FFFFFF",
+                textSectionTitleColor: "#7D8FB3",
+                monthTextColor: palette.samsungBlue,
+                textMonthFontWeight: "700",
+                textDayFontWeight: "600",
+                textDayHeaderFontWeight: "700",
+                arrowColor: palette.samsungBlue,
+                todayTextColor: palette.samsungBlue,
+                dayTextColor: "#243250",
+                textDisabledColor: "#C1CEE2",
+              }}
+              style={styles.calendar}
+            />
+          </View>
+        </View>
+      );
+    }
+
+    if (section === "location") {
+      return (
+        <View style={styles.filterGroup}>
+          <View style={styles.modalSectionHeader}>
+            <Text style={styles.modalSectionTitle}>Pickup location</Text>
+            <Text style={styles.modalSectionMeta}>{activeLocationText}</Text>
+          </View>
+          <View style={styles.optionGrid}>
+            {locations.map((location) => (
+              <View
+                key={location}
+                style={[
+                  styles.optionCell,
+                  isTablet ? styles.optionCellTablet : styles.optionCellMobile,
+                ]}
+              >
+                <FilterChip
+                  label={location}
+                  description={locationDescriptions[location]}
+                  icon={locationIcons[location]}
+                  selected={selectedLocation === location}
+                  onPress={() => setSelectedLocation(location)}
+                />
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    if (section === "type") {
+      return (
+        <View style={styles.filterGroup}>
+          <View style={styles.modalSectionHeader}>
+            <Text style={styles.modalSectionTitle}>Car type</Text>
+            <Text style={styles.modalSectionMeta}>{activeTypeText}</Text>
+          </View>
+          <View style={styles.optionGrid}>
+            {carTypes.map((type) => (
+              <View
+                key={type}
+                style={[
+                  styles.optionCell,
+                  isTablet ? styles.optionCellTablet : styles.optionCellMobile,
+                ]}
+              >
+                <FilterChip
+                  label={type}
+                  description={carTypeDescriptions[type]}
+                  icon={carTypeIcons[type]}
+                  selected={selectedType === type}
+                  onPress={() => setSelectedType(type)}
+                />
+              </View>
+            ))}
+          </View>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.filterGroup}>
+        <View style={styles.modalSectionHeader}>
+          <Text style={styles.modalSectionTitle}>Price range</Text>
+          <Text style={styles.modalSectionMeta}>{selectedPrice}</Text>
+        </View>
+        <View style={styles.priceOptionStack}>
+          {priceRanges.map((range) => (
+            <FilterChip
+              key={range.label}
+              label={range.label}
+              description={priceDescriptions[range.label]}
+              icon="cash-outline"
+              emphasis="price"
+              selected={selectedPrice === range.label}
+              onPress={() => setSelectedPrice(range.label)}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <AppShell
+      header={
+        <TopNavBar
+          selectedLocation={selectedLocation}
+          locationOptions={locations}
+          onLocationChange={(location) =>
+            setSelectedLocation(location as (typeof locations)[number])
+          }
+          onLoginPress={() => router.push("/(tabs)/profile")}
+        />
+      }
+      overlay={
+        <Animated.View
+          pointerEvents={isStickyFiltersVisible ? "auto" : "none"}
+          style={[
+            styles.stickyBarWrap,
+            {
+              opacity: stickyProgress,
+              transform: [
+                { translateY: stickyTranslateY },
+                { scale: stickyScale },
+              ],
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.stickyBarShell,
+              { maxWidth: contentWidth + spacing.md * 2 },
+            ]}
+          >
+            <View style={[styles.stickyBar, isTablet && styles.stickyBarTablet]}>
+              <View
+                style={[
+                  styles.stickySearchRow,
+                  isMobile && styles.stickySearchRowMobile,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.stickySearchShell,
+                    isCompact && styles.stickySearchShellCompact,
+                  ]}
+                >
+                  <Ionicons
+                    name="search-outline"
+                    size={17}
+                    color={palette.samsungBlueSoft}
+                  />
+                  <TextInput
+                    value={search}
+                    onChangeText={setSearch}
+                    placeholder={t("searchPlaceholder")}
+                    placeholderTextColor="#8091A6"
+                    style={styles.stickySearchInput}
+                  />
+                </View>
+
+                <Pressable
+                  style={[
+                    styles.stickyFilterButton,
+                    isMobile && styles.stickyFilterButtonMobile,
+                  ]}
+                  onPress={() => openFilterSection("dates")}
+                >
+                  <Ionicons
+                    name="options-outline"
+                    size={17}
+                    color={palette.white}
+                  />
+                  <Text style={styles.stickyFilterButtonText}>
+                    {t("filters")}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.stickyQuickRow}>
+                <Pressable
+                  style={styles.stickyQuickPill}
+                  onPress={() => openFilterSection("location")}
+                >
+                  <Ionicons
+                    name="location-outline"
+                    size={14}
+                    color={palette.samsungBlue}
+                  />
+                  <Text style={styles.stickyQuickPillText}>
+                    {activeLocationText}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.stickyQuickPill}
+                  onPress={() => openFilterSection("dates")}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={14}
+                    color={palette.samsungBlue}
+                  />
+                  <Text style={styles.stickyQuickPillText}>
+                    {dateSummaryText}
+                  </Text>
+                </Pressable>
+
+                {isTablet ? (
+                  <Pressable
+                    style={styles.stickyQuickPill}
+                    onPress={() => openFilterSection("type")}
+                  >
+                    <Ionicons
+                      name="car-outline"
+                      size={14}
+                      color={palette.samsungBlue}
+                    />
+                    <Text style={styles.stickyQuickPillText}>
+                      {activeTypeText}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+      }
+      scrollViewProps={{
+        onScroll: handleScroll,
+        scrollEventThrottle: 16,
+      }}
+    >
+      <View style={[styles.heroStage, fullBleedHeroStyle]}>
+        <ImageBackground
+          source={{ uri: heroImageUri }}
+          style={[styles.heroBanner, isTablet && styles.heroBannerTablet]}
+          imageStyle={styles.heroBannerImage}
+        >
+          <View style={styles.heroBannerShade} />
+          <View style={styles.heroBannerContent}>
+            <Text style={styles.heroBannerEyebrow}>
+              {t("heroLocationLabel")}
+            </Text>
+            <Text style={styles.heroBannerTitle}>{displayLocation}</Text>
+            <Text style={styles.heroBannerMeta}>
+              {t("carsAvailableNow", { count: filteredCars.length })}
             </Text>
           </View>
+        </ImageBackground>
 
-          <Pressable style={styles.heroIconButton}>
-            <Ionicons
-              name="notifications-outline"
-              size={20}
-              color={palette.white}
-            />
-          </Pressable>
-        </View>
+        <View style={[styles.heroPanel, isTablet && styles.heroPanelTablet]}>
+          <View style={[styles.heroTopRow, isMobile && styles.heroTopRowMobile]}>
+            <View style={styles.heroLocationBlock}>
+              <Text style={styles.heroLabel}>{t("searchPlaceholder")}</Text>
+              <View style={styles.locationRow}>
+                <Ionicons
+                  name="location"
+                  size={14}
+                  color={palette.samsungBlueSoft}
+                />
+                <Text style={styles.heroLocation}>{displayLocation}</Text>
+              </View>
+            </View>
 
-        <View style={styles.searchRow}>
-          <View style={styles.searchShell}>
-            <Ionicons name="search-outline" size={18} color="#6F7D90" />
-            <TextInput
-              value={search}
-              onChangeText={setSearch}
-              placeholder="Search"
-              placeholderTextColor="#8091A6"
-              style={styles.searchInput}
-            />
+            {activeFilterCount > 0 ? (
+              <View style={styles.activeFilterPill}>
+                <Text style={styles.activeFilterPillText}>
+                  {activeFilterCount} active
+                </Text>
+              </View>
+            ) : null}
           </View>
 
-          <Pressable style={styles.filterButton} onPress={openFilters}>
-            <Ionicons name="options-outline" size={20} color="#1976FF" />
-          </Pressable>
-        </View>
+          <View style={[styles.searchRow, isMobile && styles.searchRowMobile]}>
+            <View style={styles.searchShell}>
+              <Ionicons name="search-outline" size={18} color="#6F7D90" />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder={t("searchPlaceholder")}
+                placeholderTextColor="#8091A6"
+                style={styles.searchInput}
+              />
+            </View>
 
-        <View style={styles.summaryStrip}>
-          <View style={styles.summaryPill}>
-            <Ionicons name="calendar-outline" size={15} color="#DDEBFF" />
-            <Text style={styles.summaryPillText}>
-              {formatDisplayDate(dateFrom)} - {formatDisplayDate(dateTo)}
-            </Text>
+            <Pressable
+              style={[styles.filterButton, isMobile && styles.filterButtonMobile]}
+              onPress={openFilters}
+            >
+              <Ionicons
+                name="options-outline"
+                size={18}
+                color={palette.white}
+              />
+              <Text style={styles.filterButtonText}>{t("filters")}</Text>
+            </Pressable>
           </View>
-          <View style={styles.summaryPill}>
-            <Ionicons name="location-outline" size={15} color="#DDEBFF" />
-            <Text style={styles.summaryPillText}>{activeLocationText}</Text>
-          </View>
-          <View style={styles.summaryPill}>
-            <Ionicons name="car-outline" size={15} color="#DDEBFF" />
-            <Text style={styles.summaryPillText}>{activeTypeText}</Text>
-          </View>
-          <View style={styles.summaryPill}>
-            <Ionicons name="cash-outline" size={15} color="#DDEBFF" />
-            <Text style={styles.summaryPillText}>{selectedPrice}</Text>
+
+          <View style={styles.summaryStrip}>
+            <Pressable
+              style={styles.summaryPill}
+              onPress={() => openFilterSection("dates")}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={15}
+                color={palette.samsungBlue}
+              />
+              <Text style={styles.summaryPillText}>{dateSummaryText}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.summaryPill}
+              onPress={() => openFilterSection("location")}
+            >
+              <Ionicons
+                name="location-outline"
+                size={15}
+                color={palette.samsungBlue}
+              />
+              <Text style={styles.summaryPillText}>{activeLocationText}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.summaryPill}
+              onPress={() => openFilterSection("type")}
+            >
+              <Ionicons name="car-outline" size={15} color={palette.samsungBlue} />
+              <Text style={styles.summaryPillText}>{activeTypeText}</Text>
+            </Pressable>
           </View>
         </View>
       </View>
@@ -337,15 +712,17 @@ export default function CarsTabScreen() {
         visible={isFiltersOpen}
         onRequestClose={closeFilters}
       >
-        <View style={styles.modalBackdrop}>
+        <View
+          style={[styles.modalBackdrop, isTablet && styles.modalBackdropTablet]}
+        >
           <Pressable style={styles.modalScrim} onPress={closeFilters} />
           <View style={[styles.modalCard, isTablet && styles.modalCardTablet]}>
+            {!isTablet ? <View style={styles.modalHandle} /> : null}
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderTextBlock}>
-                <Text style={styles.modalTitle}>Search filters</Text>
+                <Text style={styles.modalTitle}>{t("searchFilters")}</Text>
                 <Text style={styles.modalSubtitle}>
-                  Choose dates, pickup city, car class, and budget in one
-                  focused view.
+                  {t("searchFiltersSubtitle")}
                 </Text>
               </View>
               <Pressable
@@ -357,227 +734,84 @@ export default function CarsTabScreen() {
               </Pressable>
             </View>
 
-            <View style={styles.modalTabRow}>
-              {filterSections.map((section) => {
-                const isActive = activeFilterSection === section;
-                const labelMap: Record<FilterSection, string> = {
-                  dates: "Dates",
-                  location: "Location",
-                  type: "Car Type",
-                  price: "Price",
-                };
+            {isTablet ? (
+              <View style={styles.modalTabRow}>
+                {filterSections.map((section) => {
+                  const isActive = activeFilterSection === section;
 
-                return (
-                  <Pressable
-                    key={section}
-                    style={[styles.modalTab, isActive && styles.modalTabActive]}
-                    onPress={() => setActiveFilterSection(section)}
-                  >
-                    <Text
+                  return (
+                    <Pressable
+                      key={section}
                       style={[
-                        styles.modalTabText,
-                        isActive && styles.modalTabTextActive,
+                        styles.modalTab,
+                        isActive && styles.modalTabActive,
                       ]}
+                      onPress={() => setActiveFilterSection(section)}
                     >
-                      {labelMap[section]}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <View style={styles.modalContent}>
-              {activeFilterSection === "dates" ? (
-                <View style={styles.filterGroup}>
-                  <View style={styles.modalSectionHeader}>
-                    <Text style={styles.modalSectionTitle}>Rental dates</Text>
-                    <Text style={styles.modalSectionMeta}>
-                      {tripLength} days selected
-                    </Text>
-                  </View>
-
-                  <View style={styles.dateSummaryRow}>
-                    <View style={styles.modalDateCard}>
-                      <Text style={styles.modalDateLabel}>From</Text>
-                      <Text style={styles.modalDateValue}>
-                        {formatDisplayDate(dateFrom)}
-                      </Text>
-                    </View>
-                    <View style={styles.modalDateCard}>
-                      <Text style={styles.modalDateLabel}>To</Text>
-                      <Text style={styles.modalDateValue}>
-                        {formatDisplayDate(dateTo)}
-                      </Text>
-                    </View>
-                    <View style={styles.modalTripCard}>
-                      <Text style={styles.modalTripValue}>{tripLength}</Text>
-                      <Text style={styles.modalTripLabel}>days</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.calendarCardModal}>
-                    <Calendar
-                      current={dateFrom}
-                      minDate={toDateKey(today)}
-                      onDayPress={handleDateSelect}
-                      markingType="period"
-                      markedDates={markedDates}
-                      enableSwipeMonths
-                      hideExtraDays={false}
-                      theme={{
-                        calendarBackground: "#FFFFFF",
-                        textSectionTitleColor: "#88A5D6",
-                        monthTextColor: "#15376C",
-                        textMonthFontWeight: "700",
-                        textDayFontWeight: "600",
-                        textDayHeaderFontWeight: "700",
-                        arrowColor: "#0F66EA",
-                        todayTextColor: "#0F66EA",
-                        dayTextColor: "#173057",
-                        textDisabledColor: "#C1CEE2",
-                      }}
-                      style={styles.calendar}
-                    />
-                  </View>
-                </View>
-              ) : null}
-
-              {activeFilterSection === "location" ? (
-                <View style={styles.filterGroup}>
-                  <View style={styles.modalSectionHeader}>
-                    <Text style={styles.modalSectionTitle}>
-                      Pickup location
-                    </Text>
-                    <Text style={styles.modalSectionMeta}>
-                      {activeLocationText}
-                    </Text>
-                  </View>
-                  <View style={styles.optionGrid}>
-                    {locations.map((location) => (
-                      <View
-                        key={location}
+                      <Text
                         style={[
-                          styles.optionCell,
-                          isTablet
-                            ? styles.optionCellTablet
-                            : styles.optionCellMobile,
+                          styles.modalTabText,
+                          isActive && styles.modalTabTextActive,
                         ]}
                       >
-                        <FilterChip
-                          label={location}
-                          description={locationDescriptions[location]}
-                          icon={locationIcons[location]}
-                          selected={selectedLocation === location}
-                          onPress={() => setSelectedLocation(location)}
-                        />
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
+                        {filterSectionLabels[section]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
 
-              {activeFilterSection === "type" ? (
-                <View style={styles.filterGroup}>
-                  <View style={styles.modalSectionHeader}>
-                    <Text style={styles.modalSectionTitle}>Car type</Text>
-                    <Text style={styles.modalSectionMeta}>
-                      {activeTypeText}
-                    </Text>
-                  </View>
-                  <View style={styles.optionGrid}>
-                    {carTypes.map((type) => (
-                      <View
-                        key={type}
-                        style={[
-                          styles.optionCell,
-                          isTablet
-                            ? styles.optionCellTablet
-                            : styles.optionCellMobile,
-                        ]}
-                      >
-                        <FilterChip
-                          label={type}
-                          description={carTypeDescriptions[type]}
-                          icon={carTypeIcons[type]}
-                          selected={selectedType === type}
-                          onPress={() => setSelectedType(type)}
-                        />
-                      </View>
-                    ))}
-                  </View>
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {isTablet ? (
+                <View style={styles.filterSectionCard}>
+                  {renderFilterSection(activeFilterSection)}
                 </View>
-              ) : null}
+              ) : (
+                filterSections.map((section) => (
+                  <View key={section} style={styles.filterSectionCard}>
+                    {renderFilterSection(section)}
+                  </View>
+                ))
+              )}
+            </ScrollView>
 
-              {activeFilterSection === "price" ? (
-                <View style={styles.filterGroup}>
-                  <View style={styles.modalSectionHeader}>
-                    <Text style={styles.modalSectionTitle}>Price range</Text>
-                    <Text style={styles.modalSectionMeta}>{selectedPrice}</Text>
-                  </View>
-                  <View style={styles.priceOptionStack}>
-                    {priceRanges.map((range) => (
-                      <FilterChip
-                        key={range.label}
-                        label={range.label}
-                        description={priceDescriptions[range.label]}
-                        icon="cash-outline"
-                        emphasis="price"
-                        selected={selectedPrice === range.label}
-                        onPress={() => setSelectedPrice(range.label)}
-                      />
-                    ))}
-                  </View>
-                </View>
-              ) : null}
-            </View>
-
-            <View style={styles.modalActionList}>
-              <Pressable style={styles.modalActionRow} onPress={clearFilters}>
-                <View style={styles.modalActionLead}>
-                  <View style={styles.modalActionIconWrap}>
-                    <Ionicons
-                      name="refresh-outline"
-                      size={18}
-                      color="#0F66EA"
-                    />
-                  </View>
-                  <View style={styles.modalActionTextBlock}>
-                    <Text style={styles.modalActionTitle}>
-                      Reset all filters
-                    </Text>
-                    <Text style={styles.modalActionSubtitle}>
-                      Clear dates, location, car type, and price selection.
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color="#7C93B8" />
+            <View style={[styles.modalFooter, isMobile && styles.modalFooterMobile]}>
+              <Pressable
+                style={[
+                  styles.footerButton,
+                  styles.footerSecondaryButton,
+                  isMobile && styles.footerButtonMobile,
+                ]}
+                onPress={clearFilters}
+              >
+                <Text style={styles.footerSecondaryText}>{t("reset")}</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.footerButton,
+                  styles.footerPrimaryButton,
+                  isMobile && styles.footerButtonMobile,
+                ]}
+                onPress={closeFilters}
+              >
+                <Text style={styles.footerPrimaryText}>
+                  {t("showCars", { count: filteredCars.length })}
+                </Text>
               </Pressable>
             </View>
           </View>
         </View>
       </Modal>
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Brands</Text>
-        <Text style={styles.sectionLink}>See All</Text>
-      </View>
-
-      <View style={styles.brandRow}>
-        {brands.map((brand) => (
-          <View key={brand.name} style={styles.brandItem}>
-            <View style={styles.brandCircle}>
-              <Text style={styles.brandMark}>{brand.mark}</Text>
-            </View>
-            <Text style={styles.brandName}>{brand.name}</Text>
-          </View>
-        ))}
-      </View>
-
       <View style={styles.resultsHeader}>
         <View>
-          <Text style={styles.sectionTitle}>Popular Car</Text>
           <Text style={styles.resultsText}>
-            {filteredCars.length} results matching your filters
+            {t("resultsMatching", { count: filteredCars.length })}
           </Text>
         </View>
         <Pressable onPress={clearFilters}>
@@ -588,6 +822,7 @@ export default function CarsTabScreen() {
       <FlatList
         key={listColumns}
         data={filteredCars}
+        style={!isTablet ? styles.listMobile : undefined}
         scrollEnabled={false}
         keyExtractor={(item) => item.id}
         numColumns={listColumns}
@@ -606,10 +841,8 @@ export default function CarsTabScreen() {
         )}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No cars match those filters.</Text>
-            <Text style={styles.emptyBody}>
-              Try another city, widen the price range, or clear your search.
-            </Text>
+            <Text style={styles.emptyTitle}>{t("emptyTitle")}</Text>
+            <Text style={styles.emptyBody}>{t("emptyBody")}</Text>
           </View>
         }
       />
@@ -618,15 +851,156 @@ export default function CarsTabScreen() {
 }
 
 const styles = StyleSheet.create({
+  stickyBarWrap: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: spacing.xs,
+  },
+  stickyBarShell: {
+    width: "100%",
+    alignSelf: "center",
+    paddingHorizontal: spacing.md,
+  },
+  stickyBar: {
+    backgroundColor: "rgba(255, 253, 248, 0.97)",
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: "rgba(22, 33, 62, 0.08)",
+    padding: spacing.sm,
+    gap: spacing.sm,
+    ...shadows.card,
+  },
+  stickyBarTablet: {
+    gap: spacing.xs,
+  },
+  stickySearchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  stickySearchRowMobile: {
+    flexWrap: "wrap",
+  },
+  stickySearchShell: {
+    flex: 1,
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    backgroundColor: palette.white,
+    borderRadius: radius.control,
+    borderWidth: 1,
+    borderColor: "rgba(22, 33, 62, 0.08)",
+    paddingHorizontal: spacing.md,
+  },
+  stickySearchShellCompact: {
+    minWidth: "100%",
+  },
+  stickySearchInput: {
+    flex: 1,
+    color: palette.text,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  stickyFilterButton: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderRadius: radius.control,
+    backgroundColor: palette.samsungBlue,
+    paddingHorizontal: spacing.md,
+  },
+  stickyFilterButtonMobile: {
+    width: "100%",
+  },
+  stickyFilterButtonText: {
+    color: palette.white,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  stickyQuickRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+  },
+  stickyQuickPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    minHeight: 36,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: palette.samsungBlueTint,
+  },
+  stickyQuickPillText: {
+    color: palette.samsungBlue,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  heroStage: {
+    gap: 0,
+    marginTop: -spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  heroBanner: {
+    minHeight: 260,
+    justifyContent: "flex-end",
+  },
+  heroBannerTablet: {
+    minHeight: 340,
+  },
+  heroBannerImage: {
+    resizeMode: "cover",
+  },
+  heroBannerShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(8, 18, 40, 0.36)",
+  },
+  heroBannerContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl + spacing.md,
+    paddingTop: spacing.lg,
+    gap: spacing.xs,
+  },
+  heroBannerEyebrow: {
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+  },
+  heroBannerTitle: {
+    color: palette.white,
+    fontSize: 30,
+    fontWeight: "800",
+  },
+  heroBannerMeta: {
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   heroPanel: {
-    backgroundColor: "#1976FF",
-    borderRadius: 28,
-    padding: spacing.lg,
+    backgroundColor: palette.white,
+    borderRadius: radius.panel,
+    borderWidth: 1,
+    borderColor: "rgba(22, 33, 62, 0.08)",
+    padding: spacing.md,
     gap: spacing.md,
-    ...shadows.blueHero,
+    ...shadows.softCard,
+    marginTop: -(spacing.xxl + spacing.md),
+    marginHorizontal: spacing.md,
+  },
+  heroPanelTablet: {
+    padding: spacing.lg,
+    marginHorizontal: spacing.xxl,
   },
   heroLabel: {
-    color: "#BFD8FF",
+    color: palette.textMuted,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -636,36 +1010,49 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.md,
   },
+  heroTopRowMobile: {
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+  },
   heroLocationBlock: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xxs,
   },
   locationRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: spacing.xs,
   },
   heroLocation: {
-    color: palette.white,
+    color: palette.samsungBlue,
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   heroMeta: {
-    color: "#DDEBFF",
+    color: palette.textMuted,
     fontSize: 13,
   },
-  heroIconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "rgba(255,255,255,0.18)",
+  activeFilterPill: {
+    minHeight: 32,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: palette.samsungBlueTint,
     alignItems: "center",
     justifyContent: "center",
+  },
+  activeFilterPillText: {
+    color: palette.samsungBlue,
+    fontSize: 12,
+    fontWeight: "800",
   },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+  },
+  searchRowMobile: {
+    flexWrap: "wrap",
   },
   summaryStrip: {
     flexDirection: "row",
@@ -676,16 +1063,16 @@ const styles = StyleSheet.create({
   summaryPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: radius.pill,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: palette.surface,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: palette.border,
   },
   summaryPillText: {
-    color: "#DDEBFF",
+    color: palette.samsungBlue,
     fontSize: 13,
     fontWeight: "700",
   },
@@ -693,44 +1080,69 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: palette.white,
-    borderRadius: radius.md,
+    gap: spacing.xs,
+    backgroundColor: palette.surface,
+    borderRadius: radius.control,
+    borderWidth: 1,
+    borderColor: "rgba(23, 51, 44, 0.08)",
     paddingHorizontal: spacing.md,
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
   },
   filterButton: {
-    width: 50,
     height: 50,
-    borderRadius: 16,
-    backgroundColor: palette.white,
+    flexDirection: "row",
     alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.control,
+    backgroundColor: palette.samsungBlue,
     justifyContent: "center",
+  },
+  filterButtonMobile: {
+    width: "100%",
+  },
+  filterButtonText: {
+    color: palette.white,
+    fontSize: 14,
+    fontWeight: "700",
   },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(8, 22, 43, 0.38)",
+    justifyContent: "flex-end",
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
+  },
+  modalBackdropTablet: {
     justifyContent: "center",
-    padding: spacing.md,
+    padding: spacing.lg,
   },
   modalScrim: {
     ...StyleSheet.absoluteFillObject,
   },
   modalCard: {
     width: "100%",
-    maxWidth: 640,
-    alignSelf: "center",
     backgroundColor: "#F8FBFF",
-    borderRadius: 30,
+    borderRadius: radius.sheet,
+    maxHeight: "92%",
     padding: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.lg,
     ...shadows.card,
   },
   modalCardTablet: {
     maxWidth: 760,
+    alignSelf: "center",
+  },
+  modalHandle: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    borderRadius: radius.pill,
+    backgroundColor: "#CFD8E7",
   },
   modalTitle: {
-    color: "#12315F",
+    color: palette.samsungBlue,
     fontSize: 24,
     fontWeight: "800",
     flexShrink: 1,
@@ -739,15 +1151,9 @@ const styles = StyleSheet.create({
     color: "#6F84A8",
     fontSize: 13,
     lineHeight: 19,
-    marginTop: 4,
+    marginTop: spacing.xxs,
     maxWidth: 420,
     flexShrink: 1,
-  },
-  modalActionList: {
-    backgroundColor: palette.white,
-    borderRadius: 22,
-    overflow: "hidden",
-    ...shadows.softCard,
   },
   modalHeader: {
     flexDirection: "row",
@@ -759,87 +1165,46 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  modalActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  modalActionLead: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  modalActionIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#EAF3FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
   modalCloseButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.pill,
     backgroundColor: palette.white,
     alignItems: "center",
     justifyContent: "center",
     ...shadows.icon,
   },
-  modalActionTextBlock: {
-    flex: 1,
-    minWidth: 0,
-    gap: 3,
-  },
-  modalActionTitle: {
-    color: "#12315F",
-    fontSize: 15,
-    fontWeight: "800",
-    flexShrink: 1,
-  },
-  modalActionSubtitle: {
-    color: "#6F84A8",
-    fontSize: 12,
-    lineHeight: 18,
-    flexShrink: 1,
-  },
-  modalActionDivider: {
-    height: 1,
-    backgroundColor: "#E6EEF9",
-    marginHorizontal: spacing.md,
-  },
   modalTabRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
+    gap: spacing.xs,
+    backgroundColor: palette.samsungBlueTint,
+    borderRadius: radius.control,
+    padding: spacing.xs,
   },
   modalTab: {
     flex: 1,
-    minWidth: 96,
-    paddingVertical: 12,
+    minWidth: 0,
+    paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: "#EAF3FF",
+    borderRadius: radius.control,
     alignItems: "center",
   },
   modalTabActive: {
-    backgroundColor: "#0F66EA",
+    backgroundColor: palette.samsungBlue,
   },
   modalTabText: {
-    color: "#3869AC",
+    color: palette.samsungBlueSoft,
     fontSize: 13,
     fontWeight: "700",
   },
   modalTabTextActive: {
     color: palette.white,
   },
-  modalContent: {
-    minHeight: 420,
-    justifyContent: "flex-start",
+  modalScroll: {
+    flexShrink: 1,
+  },
+  modalScrollContent: {
+    gap: spacing.md,
   },
   modalSectionHeader: {
     flexDirection: "row",
@@ -849,7 +1214,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   modalSectionTitle: {
-    color: "#12315F",
+    color: palette.samsungBlue,
     fontSize: 18,
     fontWeight: "800",
     flexShrink: 1,
@@ -860,60 +1225,34 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     flexShrink: 1,
   },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-  },
-  sectionTitle: {
-    color: palette.text,
-    fontSize: 24,
-    fontWeight: "800",
-  },
   searchInput: {
     color: palette.text,
     fontSize: 15,
     flex: 1,
     paddingVertical: 0,
   },
-  filterGroup: {
-    gap: spacing.sm,
+  filterSectionCard: {
+    backgroundColor: palette.white,
+    borderRadius: radius.card,
+    padding: spacing.md,
+    gap: spacing.md,
+    ...shadows.softCard,
   },
-  filterGroupHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    flexWrap: "wrap",
+  filterGroup: {
+    gap: spacing.md,
   },
   dateSummaryRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
   },
-  dateSummaryCard: {
-    flex: 1,
-    minWidth: 128,
-    backgroundColor: "#EEF5FF",
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
   modalDateCard: {
     flex: 1,
     minWidth: 128,
     backgroundColor: "#EEF5FF",
-    borderRadius: radius.md,
+    borderRadius: radius.control,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-  },
-  dateSummaryLabel: {
-    color: "#D5E6FF",
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
   },
   modalDateLabel: {
     color: "#6F84A8",
@@ -923,49 +1262,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   modalDateValue: {
-    color: "#12315F",
+    color: palette.samsungBlue,
     fontSize: 18,
     fontWeight: "800",
-    marginTop: 8,
-  },
-  dateSummaryValue: {
-    color: palette.white,
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: 8,
-  },
-  tripBadge: {
-    minWidth: 92,
-    backgroundColor: "rgba(10,44,94,0.32)",
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-  },
-  tripBadgeValue: {
-    color: palette.white,
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  tripBadgeLabel: {
-    color: "#D5E6FF",
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  calendarCard: {
-    backgroundColor: palette.white,
-    borderRadius: 22,
-    padding: spacing.xs,
-    overflow: "hidden",
+    marginTop: spacing.xs,
   },
   modalTripCard: {
+    flex: 1,
     minWidth: 92,
-    backgroundColor: "#0F66EA",
-    borderRadius: radius.md,
+    backgroundColor: palette.samsungBlue,
+    borderRadius: radius.control,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     alignItems: "center",
@@ -977,20 +1283,20 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   modalTripLabel: {
-    color: "#D6E6FF",
+    color: "#D8E1F3",
     fontSize: 12,
     fontWeight: "700",
     textTransform: "uppercase",
   },
   calendarCardModal: {
     backgroundColor: palette.white,
-    borderRadius: 22,
+    borderRadius: radius.card,
     padding: spacing.xs,
     overflow: "hidden",
     ...shadows.softCard,
   },
   calendar: {
-    borderRadius: 16,
+    borderRadius: radius.control,
   },
   filterLabel: {
     color: palette.textMuted,
@@ -1000,7 +1306,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   filterLabelOnBlue: {
-    color: "#EAF3FF",
+    color: palette.samsungBlueTint,
     fontSize: 13,
     fontWeight: "800",
     textTransform: "uppercase",
@@ -1011,11 +1317,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
   },
-  chipRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
   optionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1025,43 +1326,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   optionCellMobile: {
-    width: "48%",
+    width: "100%",
   },
   optionCellTablet: {
-    width: "31.5%",
+    width: "48.5%",
   },
   priceOptionStack: {
     gap: spacing.sm,
-  },
-  brandRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  brandItem: {
-    width: "22%",
-    minWidth: 72,
-    alignItems: "center",
-    gap: 8,
-  },
-  brandCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: palette.white,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.icon,
-  },
-  brandMark: {
-    color: palette.text,
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  brandName: {
-    color: palette.text,
-    fontSize: 13,
-    fontWeight: "600",
   },
   resultsHeader: {
     flexDirection: "row",
@@ -1073,10 +1344,10 @@ const styles = StyleSheet.create({
   resultsText: {
     color: palette.textMuted,
     fontSize: 14,
-    marginTop: 4,
+    marginTop: spacing.xxs,
   },
   sectionLink: {
-    color: "#3388FF",
+    color: palette.samsungBlue,
     fontSize: 14,
     fontWeight: "700",
   },
@@ -1085,17 +1356,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   listContent: {
-    gap: 0,
+    paddingBottom: spacing.xs,
+  },
+  listMobile: {
+    marginHorizontal: 0,
   },
   columnWrapper: {
     gap: spacing.md,
   },
   listItemWrap: {
     flex: 1,
+    minWidth: 0,
   },
   emptyState: {
     backgroundColor: palette.white,
-    borderRadius: 24,
+    borderRadius: radius.lg,
     padding: spacing.xl,
     alignItems: "center",
     gap: spacing.xs,
@@ -1109,5 +1384,41 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     textAlign: "center",
     lineHeight: 20,
+  },
+  modalFooter: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  modalFooterMobile: {
+    flexWrap: "wrap",
+  },
+  footerButton: {
+    minHeight: 52,
+    borderRadius: radius.control,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.md,
+  },
+  footerButtonMobile: {
+    width: "100%",
+  },
+  footerSecondaryButton: {
+    backgroundColor: palette.samsungBlueTint,
+    borderWidth: 1,
+    borderColor: palette.samsungBlueSoft,
+  },
+  footerSecondaryText: {
+    color: palette.samsungBlue,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  footerPrimaryButton: {
+    flex: 1,
+    backgroundColor: palette.samsungBlue,
+  },
+  footerPrimaryText: {
+    color: palette.white,
+    fontSize: 15,
+    fontWeight: "800",
   },
 });

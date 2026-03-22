@@ -7,6 +7,7 @@ import { LogBox } from "react-native";
 import "react-native-reanimated";
 
 import { palette } from "@/constants/theme";
+import "@/i18n";
 
 export {
   // Catch any errors thrown by the Layout component.

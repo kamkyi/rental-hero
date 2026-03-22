@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { palette, spacing } from "@/constants/theme";
+import { palette, radius, shadows, spacing } from "@/constants/theme";
 
 type FilterChipProps = {
   label: string;
@@ -31,16 +31,11 @@ export function FilterChip({
     >
       <View style={styles.topRow}>
         {icon ? (
-          <View
-            style={[
-              styles.iconWrap,
-              selected ? styles.iconWrapSelected : styles.iconWrapIdle,
-            ]}
-          >
+          <View style={[styles.iconWrap, selected ? styles.iconWrapSelected : styles.iconWrapIdle]}>
             <Ionicons
               name={icon}
               size={16}
-              color={selected ? "#0F66EA" : "#4A74B3"}
+              color={selected ? palette.samsungBlue : palette.samsungBlueSoft}
             />
           </View>
         ) : (
@@ -55,12 +50,7 @@ export function FilterChip({
       </View>
 
       <View style={styles.textBlock}>
-        <Text
-          style={[
-            styles.label,
-            selected ? styles.labelSelected : styles.labelIdle,
-          ]}
-        >
+        <Text style={[styles.label, selected ? styles.labelSelected : styles.labelIdle]}>
           {label}
         </Text>
         {description ? (
@@ -80,28 +70,28 @@ export function FilterChip({
 
 const styles = StyleSheet.create({
   chip: {
-    minHeight: 82,
-    borderRadius: 18,
+    minHeight: 92,
+    borderRadius: radius.control,
     borderWidth: 1,
     paddingHorizontal: spacing.md,
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     justifyContent: "space-between",
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   standardChip: {
     flex: 1,
   },
   priceChip: {
-    minHeight: 74,
+    minHeight: 80,
   },
   chipIdle: {
-    backgroundColor: "rgba(255,255,255,0.94)",
-    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: palette.white,
+    borderColor: palette.border,
   },
   chipSelected: {
-    backgroundColor: "#F3F8FF",
-    borderColor: "#7BB0FF",
-    boxShadow: "0px 8px 18px rgba(15, 102, 234, 0.12)",
+    backgroundColor: palette.samsungBlueTint,
+    borderColor: palette.samsungBlueSoft,
+    ...shadows.softCard,
   },
   topRow: {
     flexDirection: "row",
@@ -109,47 +99,47 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   iconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
   },
   iconWrapIdle: {
-    backgroundColor: "#EAF3FF",
+    backgroundColor: palette.samsungBlueTint,
   },
   iconWrapSelected: {
-    backgroundColor: "#DCEBFF",
+    backgroundColor: "#D7E1F4",
   },
   selectedBadge: {
     width: 22,
     height: 22,
-    borderRadius: 11,
-    backgroundColor: "#0F66EA",
+    borderRadius: radius.pill,
+    backgroundColor: palette.samsungBlue,
     alignItems: "center",
     justifyContent: "center",
   },
   textBlock: {
-    gap: 4,
+    gap: spacing.xxs,
   },
   label: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
   },
   labelIdle: {
-    color: "#12315F",
+    color: palette.samsungBlue,
   },
   labelSelected: {
-    color: "#0F66EA",
+    color: palette.samsungBlue,
   },
   description: {
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 13,
+    lineHeight: 18,
   },
   descriptionIdle: {
     color: "#6F84A8",
   },
   descriptionSelected: {
-    color: "#4A74B3",
+    color: palette.samsungBlueSoft,
   },
 });

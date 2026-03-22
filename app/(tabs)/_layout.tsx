@@ -8,7 +8,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#0F66EA",
+        tabBarActiveTintColor: palette.samsungBlue,
         tabBarInactiveTintColor: "#91A2BB",
         tabBarStyle: {
           height: 74,
@@ -29,11 +29,7 @@ export default function TabsLayout() {
         options={{
           title: "Car",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "car-sport" : "car-sport-outline"}
-              size={22}
-              color={color}
-            />
+            <Ionicons name={focused ? "car-sport" : "car-sport-outline"} size={22} color={color} />
           ),
         }}
       />
@@ -42,11 +38,7 @@ export default function TabsLayout() {
         options={{
           title: "Bike",
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "bicycle" : "bicycle-outline"}
-              size={22}
-              color={color}
-            />
+            <Ionicons name={focused ? "bicycle" : "bicycle-outline"} size={22} color={color} />
           ),
         }}
       />

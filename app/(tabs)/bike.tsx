@@ -24,12 +24,10 @@ export default function BikeTabScreen() {
     <AppShell>
       <View style={styles.heroCard}>
         <Text style={styles.kicker}>Rental Hero</Text>
-        <Text style={styles.title}>
-          Bike rentals coming into the same booking flow.
-        </Text>
+        <Text style={styles.title}>Bike rentals coming into the same booking flow.</Text>
         <Text style={styles.body}>
-          This tab is ready for your next inventory set. You can expand it later
-          with bike-specific filters, pricing, and details.
+          This tab is ready for your next inventory set. You can expand it later with bike-specific
+          filters, pricing, and details.
         </Text>
       </View>
 
@@ -39,7 +37,7 @@ export default function BikeTabScreen() {
           {bikeTypes.map((bike) => (
             <View key={bike.name} style={styles.rowCard}>
               <View style={styles.iconWrap}>
-                <Ionicons name="bicycle-outline" size={20} color="#0F66EA" />
+                <Ionicons name="bicycle-outline" size={20} color={palette.samsungBlue} />
               </View>
               <View style={styles.textBlock}>
                 <Text style={styles.rowTitle}>{bike.name}</Text>
@@ -55,7 +53,7 @@ export default function BikeTabScreen() {
 
 const styles = StyleSheet.create({
   heroCard: {
-    backgroundColor: "#0F66EA",
+    backgroundColor: palette.samsungBlue,
     borderRadius: 28,
     padding: spacing.xl,
     gap: spacing.sm,
@@ -96,8 +94,10 @@ const styles = StyleSheet.create({
   },
   rowCard: {
     flexDirection: "row",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
     gap: spacing.md,
-    backgroundColor: "#F5F9FF",
+    backgroundColor: palette.samsungBlueTint,
     borderRadius: radius.md,
     padding: spacing.md,
   },
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: "#E6F0FF",
+    backgroundColor: palette.white,
     alignItems: "center",
     justifyContent: "center",
   },

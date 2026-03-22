@@ -28,7 +28,7 @@ export default function ProfileTabScreen() {
             <View key={shortcut.label} style={styles.shortcutRow}>
               <View style={styles.shortcutLead}>
                 <View style={styles.shortcutIcon}>
-                  <Ionicons name={shortcut.icon} size={18} color="#0F66EA" />
+                  <Ionicons name={shortcut.icon} size={18} color={palette.samsungBlue} />
                 </View>
                 <Text style={styles.shortcutText}>{shortcut.label}</Text>
               </View>
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 42,
-    backgroundColor: "#0F66EA",
+    backgroundColor: palette.samsungBlue,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -93,17 +93,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: spacing.sm,
     gap: spacing.md,
+    flexWrap: "wrap",
   },
   shortcutLead: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+    flex: 1,
+    minWidth: 0,
   },
   shortcutIcon: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: palette.samsungBlueTint,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -111,5 +114,6 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 15,
     fontWeight: "700",
+    flexShrink: 1,
   },
 });
