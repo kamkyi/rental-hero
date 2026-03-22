@@ -13,6 +13,14 @@ function parseBoolean(value?: string) {
   return undefined;
 }
 
+function normalizeBasePath(basePath?: string) {
+  if (!basePath || basePath === "/") {
+    return "";
+  }
+
+  return basePath.startsWith("/") ? basePath : `/${basePath}`;
+}
+
 export function AuthKitAppProvider({ children }: PropsWithChildren) {
   const clientId = process.env.EXPO_PUBLIC_WORKOS_CLIENT_ID?.trim();
 
@@ -20,8 +28,9 @@ export function AuthKitAppProvider({ children }: PropsWithChildren) {
     return children;
   }
 
-  const redirectUri =
-    process.env.EXPO_PUBLIC_WORKOS_REDIRECT_URI?.trim() || `${window.location.origin}/cars`;
+  const basePath = normalizeBasePath(process.env.EXPO_PUBLIC_BASE_URL);
+  const defaultRedirectUri = `${window.location.origin}${basePath}/cars`;
+  const redirectUri = process.env.EXPO_PUBLIC_WORKOS_REDIRECT_URI?.trim() || defaultRedirectUri;
   const apiHostname = process.env.EXPO_PUBLIC_WORKOS_API_HOSTNAME?.trim();
   const devMode = parseBoolean(process.env.EXPO_PUBLIC_WORKOS_DEV_MODE);
 
