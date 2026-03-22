@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@react-navigation/native": "^7.1.28",
+    "@workos-inc/authkit-react": "^0.16.0",
+    "embla-carousel-react": "^8.6.0",
     "expo": "~55.0.6",
     "expo-constants": "~55.0.9",
     "expo-font": "~55.0.4",

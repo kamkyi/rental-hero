@@ -11,6 +11,7 @@ type TopNavBarProps = {
   locationOptions: readonly string[];
   onLocationChange: (location: string) => void;
   onLoginPress: () => void;
+  loginLabel?: string;
 };
 
 type LanguageCode = "en" | "my" | "th";
@@ -20,6 +21,7 @@ export function TopNavBar({
   locationOptions,
   onLocationChange,
   onLoginPress,
+  loginLabel,
 }: TopNavBarProps) {
   const { t, i18n } = useTranslation();
   const { isMobile } = useResponsive();
@@ -109,7 +111,7 @@ export function TopNavBar({
             style={[styles.loginButton, isMobile && styles.loginButtonMobile]}
             onPress={onLoginPress}
           >
-            <Text style={styles.loginText}>{t("login")}</Text>
+            <Text style={styles.loginText}>{loginLabel ?? t("login")}</Text>
           </Pressable>
         </View>
       </View>

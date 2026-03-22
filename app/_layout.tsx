@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { LogBox } from "react-native";
 import "react-native-reanimated";
 
+import { AuthKitAppProvider } from "@/components/AuthKitAppProvider";
 import { palette } from "@/constants/theme";
 import "@/i18n";
 
@@ -55,33 +56,41 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider
-      value={{
-        ...DefaultTheme,
-        colors: {
-          ...DefaultTheme.colors,
-          background: palette.background,
-          card: palette.surface,
-          border: palette.border,
-          text: palette.text,
-          primary: palette.primary,
-        },
-      }}
-    >
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: palette.surface },
-          headerTintColor: palette.text,
-          headerTitleStyle: { fontWeight: "700" },
-          contentStyle: { backgroundColor: palette.background },
+    <AuthKitAppProvider>
+      <ThemeProvider
+        value={{
+          ...DefaultTheme,
+          colors: {
+            ...DefaultTheme.colors,
+            background: palette.background,
+            card: palette.surface,
+            border: palette.border,
+            text: palette.text,
+            primary: palette.primary,
+          },
         }}
       >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="cars/[id]" options={{ title: "Car details" }} />
-        <Stack.Screen name="payment" options={{ title: "Payment method" }} />
-      </Stack>
-    </ThemeProvider>
+        <StatusBar style="dark" />
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: palette.surface },
+            headerTintColor: palette.text,
+            headerTitleStyle: { fontWeight: "700" },
+            contentStyle: { backgroundColor: palette.background },
+          }}
+        >
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen
+            name="cars/[id]"
+            options={{
+              title: "Car details",
+              animation: "slide_from_right",
+            }}
+          />
+          <Stack.Screen name="payment" options={{ title: "Payment method" }} />
+        </Stack>
+      </ThemeProvider>
+    </AuthKitAppProvider>
   );
 }

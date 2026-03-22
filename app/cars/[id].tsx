@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
-import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppShell } from "@/components/AppShell";
+import { CarImageCarousel } from "@/components/CarImageCarousel";
 import { palette, radius, shadows, spacing } from "@/constants/theme";
 import { cars, getCarById } from "@/data/cars";
 import { useResponsive } from "@/hooks/useResponsive";
@@ -23,9 +24,11 @@ export function generateStaticParams() {
 
 export default function CarDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { isMobile, isTablet } = useResponsive();
+  const { isMobile, width } = useResponsive();
   const car = getCarById(id);
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("About");
+  const [isBackAnimating, setIsBackAnimating] = useState(false);
+  const slideProgress = useRef(new Animated.Value(Platform.OS === "web" ? 1 : 0)).current;
 
   const gallery = useMemo(() => {
     if (!car) {
@@ -60,6 +63,29 @@ export default function CarDetailScreen() {
 
   const partner = partnerByLocation[car.location];
 
+  useEffect(() => {
+    if (Platform.OS !== "web") {
+      return;
+    }
+
+    slideProgress.setValue(1);
+    Animated.timing(slideProgress, {
+      toValue: 0,
+      duration: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [slideProgress]);
+
+  const navigateBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/");
+  };
+
   const handleBackPress = () => {
     if (
       Platform.OS === "web" &&
@@ -69,21 +95,56 @@ export default function CarDetailScreen() {
       document.activeElement.blur();
     }
 
-    if (router.canGoBack()) {
-      router.back();
+    if (Platform.OS !== "web") {
+      navigateBack();
       return;
     }
 
-    router.replace("/");
+    if (isBackAnimating) {
+      return;
+    }
+
+    setIsBackAnimating(true);
+    Animated.timing(slideProgress, {
+      toValue: 1,
+      duration: 280,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) {
+        setIsBackAnimating(false);
+        return;
+      }
+
+      navigateBack();
+    });
   };
+
+  const animatedScreenStyle =
+    Platform.OS === "web"
+      ? {
+          transform: [
+            {
+              translateX: slideProgress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, width],
+              }),
+            },
+          ],
+        }
+      : undefined;
 
   return (
     <AppShell>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={styles.screenWrap}>
+      <Animated.View style={[styles.screenWrap, animatedScreenStyle]}>
         <View style={[styles.chromeRow, isMobile && styles.chromeRowMobile]}>
-          <Pressable style={styles.chromeButton} onPress={handleBackPress}>
+          <Pressable
+            style={styles.chromeButton}
+            onPress={handleBackPress}
+            disabled={isBackAnimating}
+          >
             <Ionicons name="chevron-back" size={20} color={palette.text} />
           </Pressable>
 
@@ -99,33 +160,7 @@ export default function CarDetailScreen() {
           </View>
         </View>
 
-        <View style={styles.galleryCard}>
-          <Image
-            source={{ uri: car.image }}
-            style={[styles.heroImage, isTablet && styles.heroImageTablet]}
-            resizeMode="contain"
-          />
-
-          <View style={styles.sliderTrack}>
-            <View style={styles.sliderThumb} />
-          </View>
-
-          <View style={styles.thumbRow}>
-            {gallery.slice(0, 4).map((image, index) => (
-              <Image
-                key={`${image}-${index}`}
-                source={{ uri: image }}
-                style={styles.thumbImage}
-                resizeMode="cover"
-              />
-            ))}
-            {gallery.length > 4 ? (
-              <View style={styles.thumbMore}>
-                <Text style={styles.thumbMoreText}>+{gallery.length - 4}</Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
+        <CarImageCarousel images={gallery} isTablet={!isMobile} />
 
         <View style={[styles.infoRow, isMobile && styles.infoRowMobile]}>
           <View style={styles.categoryBadge}>
@@ -250,7 +285,7 @@ export default function CarDetailScreen() {
             <Text style={styles.primaryButtonText}>Book Now</Text>
           </Pressable>
         </View>
-      </View>
+      </Animated.View>
     </AppShell>
   );
 }
@@ -287,59 +322,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     ...shadows.icon,
-  },
-  galleryCard: {
-    backgroundColor: palette.white,
-    borderRadius: 22,
-    padding: spacing.md,
-    gap: spacing.md,
-    ...shadows.card,
-  },
-  heroImage: {
-    width: "100%",
-    height: 210,
-    backgroundColor: "#FAFCFF",
-    borderRadius: radius.lg,
-  },
-  heroImageTablet: {
-    height: 280,
-  },
-  sliderTrack: {
-    alignSelf: "center",
-    width: 120,
-    height: 4,
-    borderRadius: radius.pill,
-    backgroundColor: palette.samsungBlueTint,
-  },
-  sliderThumb: {
-    width: 30,
-    height: 10,
-    borderRadius: radius.pill,
-    backgroundColor: palette.samsungBlue,
-    alignSelf: "center",
-    marginTop: -3,
-  },
-  thumbRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  thumbImage: {
-    flex: 1,
-    height: 58,
-    borderRadius: radius.sm,
-    backgroundColor: "#EFF4FB",
-  },
-  thumbMore: {
-    width: 58,
-    height: 58,
-    borderRadius: radius.sm,
-    backgroundColor: palette.samsungBlue,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  thumbMoreText: {
-    color: palette.white,
-    fontWeight: "800",
   },
   infoRow: {
     flexDirection: "row",

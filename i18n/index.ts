@@ -6,6 +6,7 @@ const resources = {
     translation: {
       appName: "Rental Hero",
       login: "Login",
+      logout: "Logout",
       location: "Location",
       language: "Language",
       languageNames: {
@@ -32,6 +33,7 @@ const resources = {
     translation: {
       appName: "Rental Hero",
       login: "အကောင့်ဝင်ရန်",
+      logout: "အကောင့်ထွက်ရန်",
       location: "တည်နေရာ",
       language: "ဘာသာစကား",
       languageNames: {
@@ -57,6 +59,7 @@ const resources = {
     translation: {
       appName: "Rental Hero",
       login: "เข้าสู่ระบบ",
+      logout: "ออกจากระบบ",
       location: "สถานที่",
       language: "ภาษา",
       languageNames: {

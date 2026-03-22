@@ -22,15 +22,6 @@ const bikeTypes = [
 export default function BikeTabScreen() {
   return (
     <AppShell>
-      <View style={styles.heroCard}>
-        <Text style={styles.kicker}>Rental Hero</Text>
-        <Text style={styles.title}>Bike rentals coming into the same booking flow.</Text>
-        <Text style={styles.body}>
-          This tab is ready for your next inventory set. You can expand it later with bike-specific
-          filters, pricing, and details.
-        </Text>
-      </View>
-
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Planned categories</Text>
         <View style={styles.list}>
@@ -52,31 +43,6 @@ export default function BikeTabScreen() {
 }
 
 const styles = StyleSheet.create({
-  heroCard: {
-    backgroundColor: palette.samsungBlue,
-    borderRadius: 28,
-    padding: spacing.xl,
-    gap: spacing.sm,
-    ...shadows.blueHero,
-  },
-  kicker: {
-    color: "#CFE0FF",
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.7,
-  },
-  title: {
-    color: palette.white,
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: "800",
-  },
-  body: {
-    color: "#DCE8FF",
-    fontSize: 14,
-    lineHeight: 22,
-  },
   sectionCard: {
     backgroundColor: palette.white,
     borderRadius: 24,

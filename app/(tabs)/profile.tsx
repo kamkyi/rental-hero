@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
+import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppShell } from "@/components/AppShell";
-import { palette, shadows, spacing } from "@/constants/theme";
+import { palette, radius, shadows, spacing } from "@/constants/theme";
+import { useAppAuth } from "@/hooks/useAppAuth";
 
 const shortcuts = [
   { label: "Upcoming bookings", icon: "calendar-outline" as const },
@@ -11,14 +13,49 @@ const shortcuts = [
 ];
 
 export default function ProfileTabScreen() {
+  const { t } = useTranslation();
+  const { user, isLoading, signIn, signOut } = useAppAuth();
+
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || "Rental Hero Member";
+  const displayEmail = user?.email ?? "guest@rentalhero.app";
+  const initials = (displayName.match(/\b\w/g)?.join("").slice(0, 2) || "RH").toUpperCase();
+
+  const handleAuthPress = async () => {
+    if (Platform.OS !== "web") {
+      return;
+    }
+
+    if (user) {
+      await signOut();
+      return;
+    }
+
+    await signIn();
+  };
+
   return (
     <AppShell>
       <View style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>RH</Text>
-        </View>
-        <Text style={styles.name}>Rental Hero Member</Text>
-        <Text style={styles.email}>guest@rentalhero.app</Text>
+        {user?.profilePictureUrl ? (
+          <Image
+            source={{ uri: user.profilePictureUrl }}
+            style={styles.avatarImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+        )}
+        <Text style={styles.name}>{displayName}</Text>
+        <Text style={styles.email}>{displayEmail}</Text>
+        {Platform.OS === "web" ? (
+          <Pressable style={styles.authButton} onPress={handleAuthPress}>
+            <Text style={styles.authButtonText}>{user ? t("logout") : t("login")}</Text>
+          </Pressable>
+        ) : null}
+        {isLoading ? <Text style={styles.statusText}>Syncing account...</Text> : null}
       </View>
 
       <View style={styles.shortcutCard}>
@@ -44,7 +81,7 @@ export default function ProfileTabScreen() {
 const styles = StyleSheet.create({
   profileCard: {
     backgroundColor: palette.white,
-    borderRadius: 28,
+    borderRadius: radius.panel,
     padding: spacing.xl,
     alignItems: "center",
     gap: spacing.sm,
@@ -57,6 +94,11 @@ const styles = StyleSheet.create({
     backgroundColor: palette.samsungBlue,
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarImage: {
+    width: 84,
+    height: 84,
+    borderRadius: radius.pill,
   },
   avatarText: {
     color: palette.white,
@@ -72,9 +114,27 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontSize: 14,
   },
+  authButton: {
+    minHeight: 44,
+    borderRadius: radius.control,
+    backgroundColor: palette.samsungBlue,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xs,
+  },
+  authButtonText: {
+    color: palette.white,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  statusText: {
+    color: palette.textMuted,
+    fontSize: 13,
+  },
   shortcutCard: {
     backgroundColor: palette.white,
-    borderRadius: 24,
+    borderRadius: radius.card,
     padding: spacing.lg,
     gap: spacing.md,
     ...shadows.softCard,

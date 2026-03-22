@@ -6,10 +6,10 @@ import {
   Animated,
   Easing,
   FlatList,
-  ImageBackground,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,6 +25,7 @@ import { FilterChip } from "@/components/FilterChip";
 import { TopNavBar } from "@/components/TopNavBar";
 import { palette, radius, shadows, spacing } from "@/constants/theme";
 import { cars, carTypes, locations } from "@/data/cars";
+import { useAppAuth } from "@/hooks/useAppAuth";
 import { useResponsive } from "@/hooks/useResponsive";
 
 const priceRanges = [
@@ -80,9 +81,6 @@ const priceDescriptions: Record<string, string> = {
   "฿1,500 - ฿3,000": "Balanced comfort and price",
   "Above ฿3,000": "Premium and flagship vehicles",
 };
-
-const heroImageUri =
-  "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2200&q=80";
 
 const filterSections = ["dates", "location", "type", "price"] as const;
 type FilterSection = (typeof filterSections)[number];
@@ -172,7 +170,8 @@ function buildMarkedRange(startDate?: string, endDate?: string) {
 }
 
 export default function CarsTabScreen() {
-  const { isCompact, isMobile, isTablet, listColumns, width, contentWidth } = useResponsive();
+  const { isCompact, isMobile, isTablet, listColumns, contentWidth } = useResponsive();
+  const { user, signIn, signOut } = useAppAuth();
   const { t } = useTranslation();
   const stickyProgress = useRef(new Animated.Value(0)).current;
   const stickyVisibleRef = useRef(false);
@@ -277,6 +276,24 @@ export default function CarsTabScreen() {
     setIsFiltersOpen(false);
   };
 
+  const handleLoginPress = async () => {
+    if (Platform.OS !== "web") {
+      router.push("/(tabs)/profile");
+      return;
+    }
+
+    try {
+      if (user) {
+        await signOut();
+        return;
+      }
+
+      await signIn();
+    } catch (error) {
+      console.error("AuthKit auth action failed", error);
+    }
+  };
+
   const setStickyFiltersVisible = (nextVisible: boolean) => {
     if (stickyVisibleRef.current === nextVisible) {
       return;
@@ -299,13 +316,6 @@ export default function CarsTabScreen() {
     setStickyFiltersVisible(yOffset > stickyRevealOffset);
   };
 
-  const heroHorizontalOffset = (width - contentWidth) / 2 + spacing.md;
-  const fullBleedHeroStyle = isMobile
-    ? styles.heroStageMobileBleed
-    : {
-        width,
-        marginLeft: -heroHorizontalOffset,
-      };
   const stickyTranslateY = stickyProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [-20, 0],
@@ -452,16 +462,8 @@ export default function CarsTabScreen() {
 
   return (
     <AppShell
-      header={
-        <TopNavBar
-          selectedLocation={selectedLocation}
-          locationOptions={locations}
-          onLocationChange={(location) =>
-            setSelectedLocation(location as (typeof locations)[number])
-          }
-          onLoginPress={() => router.push("/(tabs)/profile")}
-        />
-      }
+      scrollable={false}
+      contentStyle={styles.shellContent}
       overlay={
         <Animated.View
           pointerEvents={isStickyFiltersVisible ? "auto" : "none"}
@@ -498,9 +500,9 @@ export default function CarsTabScreen() {
                 </Pressable>
               </View>
 
-              <View style={styles.stickyQuickRow}>
+              <View style={[styles.stickyQuickRow, isMobile && styles.stickyQuickRowMobile]}>
                 <Pressable
-                  style={styles.stickyQuickPill}
+                  style={[styles.stickyQuickPill, isMobile && styles.stickyQuickPillMobile]}
                   onPress={() => openFilterSection("location")}
                 >
                   <Ionicons name="location-outline" size={14} color={palette.samsungBlue} />
@@ -508,7 +510,7 @@ export default function CarsTabScreen() {
                 </Pressable>
 
                 <Pressable
-                  style={styles.stickyQuickPill}
+                  style={[styles.stickyQuickPill, isMobile && styles.stickyQuickPillMobile]}
                   onPress={() => openFilterSection("dates")}
                 >
                   <Ionicons name="calendar-outline" size={14} color={palette.samsungBlue} />
@@ -529,81 +531,126 @@ export default function CarsTabScreen() {
           </View>
         </Animated.View>
       }
-      scrollViewProps={{
-        onScroll: handleScroll,
-        scrollEventThrottle: 16,
-      }}
     >
-      <View style={[styles.heroStage, fullBleedHeroStyle]}>
-        <ImageBackground
-          source={{ uri: heroImageUri }}
-          style={[styles.heroBanner, isTablet && styles.heroBannerTablet]}
-          imageStyle={styles.heroBannerImage}
-        >
-          <View style={styles.heroBannerShade} />
-          <View style={styles.heroBannerContent}>
-            <Text style={styles.heroBannerEyebrow}>{t("heroLocationLabel")}</Text>
-            <Text style={styles.heroBannerTitle}>{displayLocation}</Text>
-            <Text style={styles.heroBannerMeta}>
-              {t("carsAvailableNow", { count: filteredCars.length })}
-            </Text>
-          </View>
-        </ImageBackground>
+      <FlatList
+        key={listColumns}
+        data={filteredCars}
+        style={[styles.carsList, !isTablet && styles.listMobile]}
+        keyExtractor={(item) => item.id}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        numColumns={listColumns}
+        columnWrapperStyle={listColumns > 1 ? styles.columnWrapper : undefined}
+        ListHeaderComponent={
+          <View style={styles.listHeaderContent}>
+            <TopNavBar
+              selectedLocation={selectedLocation}
+              locationOptions={locations}
+              onLocationChange={(location) =>
+                setSelectedLocation(location as (typeof locations)[number])
+              }
+              onLoginPress={handleLoginPress}
+              loginLabel={user ? t("logout") : t("login")}
+            />
 
-        <View style={[styles.heroPanel, isTablet && styles.heroPanelTablet]}>
-          <View style={[styles.heroTopRow, isMobile && styles.heroTopRowMobile]}>
-            <View style={styles.heroLocationBlock}>
-              <Text style={styles.heroLabel}>{t("searchPlaceholder")}</Text>
-              <View style={styles.locationRow}>
-                <Ionicons name="location" size={14} color={palette.samsungBlueSoft} />
-                <Text style={styles.heroLocation}>{displayLocation}</Text>
+            <View style={styles.jumbotronWrap}>
+              <View style={[styles.heroPanel, isMobile && styles.heroPanelMobile]}>
+                <View style={[styles.heroTopRow, isMobile && styles.heroTopRowMobile]}>
+                  <View style={styles.heroLocationBlock}>
+                    <Text style={styles.heroLabel}>{t("heroLocationLabel")}</Text>
+                    <View style={styles.locationRow}>
+                      <Ionicons name="location" size={14} color={palette.samsungBlueSoft} />
+                      <Text style={styles.heroLocation}>{displayLocation}</Text>
+                    </View>
+                    <Text style={styles.heroMeta}>
+                      {t("carsAvailableNow", { count: filteredCars.length })}
+                    </Text>
+                  </View>
+
+                  {activeFilterCount > 0 ? (
+                    <View style={styles.activeFilterPill}>
+                      <Text style={styles.activeFilterPillText}>{activeFilterCount} active</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={[styles.searchRow, isMobile && styles.searchRowMobile]}>
+                  <View style={styles.searchShell}>
+                    <Ionicons name="search-outline" size={18} color="#6F7D90" />
+                    <TextInput
+                      value={search}
+                      onChangeText={setSearch}
+                      placeholder={t("searchPlaceholder")}
+                      placeholderTextColor="#8091A6"
+                      style={styles.searchInput}
+                    />
+                  </View>
+
+                  <Pressable
+                    style={[styles.filterButton, isMobile && styles.filterButtonMobile]}
+                    onPress={openFilters}
+                  >
+                    <Ionicons name="options-outline" size={18} color={palette.white} />
+                    <Text style={styles.filterButtonText}>{t("filters")}</Text>
+                  </Pressable>
+                </View>
+
+                <View style={[styles.summaryStrip, isMobile && styles.summaryStripMobile]}>
+                  <Pressable
+                    style={[styles.summaryPill, isMobile && styles.summaryPillMobile]}
+                    onPress={() => openFilterSection("dates")}
+                  >
+                    <Ionicons name="calendar-outline" size={15} color={palette.samsungBlue} />
+                    <Text style={styles.summaryPillText}>{dateSummaryText}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.summaryPill, isMobile && styles.summaryPillMobile]}
+                    onPress={() => openFilterSection("location")}
+                  >
+                    <Ionicons name="location-outline" size={15} color={palette.samsungBlue} />
+                    <Text style={styles.summaryPillText}>{activeLocationText}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.summaryPill, isMobile && styles.summaryPillMobile]}
+                    onPress={() => openFilterSection("type")}
+                  >
+                    <Ionicons name="car-outline" size={15} color={palette.samsungBlue} />
+                    <Text style={styles.summaryPillText}>{activeTypeText}</Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
 
-            {activeFilterCount > 0 ? (
-              <View style={styles.activeFilterPill}>
-                <Text style={styles.activeFilterPillText}>{activeFilterCount} active</Text>
+            <View style={styles.resultsHeader}>
+              <View>
+                <Text style={styles.resultsText}>
+                  {t("resultsMatching", { count: filteredCars.length })}
+                </Text>
               </View>
-            ) : null}
-          </View>
-
-          <View style={[styles.searchRow, isMobile && styles.searchRowMobile]}>
-            <View style={styles.searchShell}>
-              <Ionicons name="search-outline" size={18} color="#6F7D90" />
-              <TextInput
-                value={search}
-                onChangeText={setSearch}
-                placeholder={t("searchPlaceholder")}
-                placeholderTextColor="#8091A6"
-                style={styles.searchInput}
-              />
+              <Pressable onPress={clearFilters}>
+                <Text style={styles.sectionLink}>See All</Text>
+              </Pressable>
             </View>
-
-            <Pressable
-              style={[styles.filterButton, isMobile && styles.filterButtonMobile]}
-              onPress={openFilters}
-            >
-              <Ionicons name="options-outline" size={18} color={palette.white} />
-              <Text style={styles.filterButtonText}>{t("filters")}</Text>
-            </Pressable>
           </View>
-
-          <View style={styles.summaryStrip}>
-            <Pressable style={styles.summaryPill} onPress={() => openFilterSection("dates")}>
-              <Ionicons name="calendar-outline" size={15} color={palette.samsungBlue} />
-              <Text style={styles.summaryPillText}>{dateSummaryText}</Text>
-            </Pressable>
-            <Pressable style={styles.summaryPill} onPress={() => openFilterSection("location")}>
-              <Ionicons name="location-outline" size={15} color={palette.samsungBlue} />
-              <Text style={styles.summaryPillText}>{activeLocationText}</Text>
-            </Pressable>
-            <Pressable style={styles.summaryPill} onPress={() => openFilterSection("type")}>
-              <Ionicons name="car-outline" size={15} color={palette.samsungBlue} />
-              <Text style={styles.summaryPillText}>{activeTypeText}</Text>
-            </Pressable>
+        }
+        contentContainerStyle={styles.listContent}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        renderItem={({ item }) => (
+          <View style={styles.listItemWrap}>
+            <CarCard
+              car={item}
+              onPress={() => router.push({ pathname: "/cars/[id]", params: { id: item.id } })}
+            />
           </View>
-        </View>
-      </View>
+        )}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>{t("emptyTitle")}</Text>
+            <Text style={styles.emptyBody}>{t("emptyBody")}</Text>
+          </View>
+        }
+      />
 
       <Modal animationType="fade" transparent visible={isFiltersOpen} onRequestClose={closeFilters}>
         <View style={[styles.modalBackdrop, isTablet && styles.modalBackdropTablet]}>
@@ -689,48 +736,21 @@ export default function CarsTabScreen() {
           </View>
         </View>
       </Modal>
-
-      <View style={styles.resultsHeader}>
-        <View>
-          <Text style={styles.resultsText}>
-            {t("resultsMatching", { count: filteredCars.length })}
-          </Text>
-        </View>
-        <Pressable onPress={clearFilters}>
-          <Text style={styles.sectionLink}>See All</Text>
-        </Pressable>
-      </View>
-
-      <FlatList
-        key={listColumns}
-        data={filteredCars}
-        style={!isTablet ? styles.listMobile : undefined}
-        scrollEnabled={false}
-        keyExtractor={(item) => item.id}
-        numColumns={listColumns}
-        columnWrapperStyle={listColumns > 1 ? styles.columnWrapper : undefined}
-        contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        renderItem={({ item }) => (
-          <View style={styles.listItemWrap}>
-            <CarCard
-              car={item}
-              onPress={() => router.push({ pathname: "/cars/[id]", params: { id: item.id } })}
-            />
-          </View>
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>{t("emptyTitle")}</Text>
-            <Text style={styles.emptyBody}>{t("emptyBody")}</Text>
-          </View>
-        }
-      />
     </AppShell>
   );
 }
 
 const styles = StyleSheet.create({
+  shellContent: {
+    flex: 1,
+  },
+  carsList: {
+    flex: 1,
+  },
+  listHeaderContent: {
+    gap: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
   stickyBarWrap: {
     position: "absolute",
     top: 0,
@@ -808,6 +828,9 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.xs,
   },
+  stickyQuickRowMobile: {
+    alignItems: "stretch",
+  },
   stickyQuickPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -817,70 +840,34 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     backgroundColor: palette.samsungBlueTint,
   },
+  stickyQuickPillMobile: {
+    width: "100%",
+    justifyContent: "space-between",
+    paddingVertical: spacing.sm,
+  },
   stickyQuickPillText: {
+    flex: 1,
     color: palette.samsungBlue,
     fontSize: 12,
     fontWeight: "700",
+    marginLeft: spacing.xs,
   },
-  heroStage: {
-    gap: 0,
-    marginTop: -spacing.lg,
+  jumbotronWrap: {
     marginBottom: spacing.sm,
-  },
-  heroStageMobileBleed: {
-    marginHorizontal: -spacing.md,
-  },
-  heroBanner: {
-    minHeight: 260,
-    justifyContent: "flex-end",
-  },
-  heroBannerTablet: {
-    minHeight: 340,
-  },
-  heroBannerImage: {
-    resizeMode: "cover",
-  },
-  heroBannerShade: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(8, 18, 40, 0.36)",
-  },
-  heroBannerContent: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl + spacing.md,
-    paddingTop: spacing.lg,
-    gap: spacing.xs,
-  },
-  heroBannerEyebrow: {
-    color: "rgba(255,255,255,0.82)",
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  heroBannerTitle: {
-    color: palette.white,
-    fontSize: 30,
-    fontWeight: "800",
-  },
-  heroBannerMeta: {
-    color: "rgba(255,255,255,0.86)",
-    fontSize: 14,
-    fontWeight: "600",
   },
   heroPanel: {
     backgroundColor: palette.white,
-    borderRadius: radius.panel,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: "rgba(22, 33, 62, 0.08)",
     padding: spacing.md,
     gap: spacing.md,
     ...shadows.softCard,
-    marginTop: -(spacing.xxl + spacing.md),
-    marginHorizontal: spacing.md,
+    marginTop: 0,
+    marginHorizontal: 0,
   },
-  heroPanelTablet: {
-    padding: spacing.lg,
-    marginHorizontal: spacing.xxl,
+  heroPanelMobile: {
+    padding: spacing.md,
   },
   heroLabel: {
     color: palette.textMuted,
@@ -910,10 +897,12 @@ const styles = StyleSheet.create({
     color: palette.samsungBlue,
     fontSize: 18,
     fontWeight: "800",
+    flexShrink: 1,
   },
   heroMeta: {
     color: palette.textMuted,
     fontSize: 13,
+    lineHeight: 18,
   },
   activeFilterPill: {
     minHeight: 32,
@@ -943,6 +932,10 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: spacing.md,
   },
+  summaryStripMobile: {
+    alignItems: "stretch",
+    gap: spacing.sm,
+  },
   summaryPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -954,10 +947,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: palette.border,
   },
+  summaryPillMobile: {
+    width: "100%",
+    justifyContent: "space-between",
+    paddingVertical: spacing.sm,
+  },
   summaryPillText: {
+    flex: 1,
     color: palette.samsungBlue,
     fontSize: 13,
     fontWeight: "700",
+    marginLeft: spacing.xs,
   },
   searchShell: {
     flex: 1,
@@ -1239,7 +1239,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   listContent: {
-    paddingBottom: spacing.xs,
+    paddingBottom: spacing.xxl,
   },
   listMobile: {
     marginHorizontal: 0,

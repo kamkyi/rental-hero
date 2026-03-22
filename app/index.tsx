@@ -30,9 +30,7 @@ export default function IndexScreen() {
 
     const loadPermissionState = async () => {
       if (Platform.OS === "web") {
-        if (isMounted) {
-          setPermissionState("prompt");
-        }
+        router.replace("/cars");
         return;
       }
 
