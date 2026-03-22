@@ -22,8 +22,7 @@ const locationPromptCopy = {
 };
 
 export default function IndexScreen() {
-  const [permissionState, setPermissionState] =
-    useState<PermissionState>("checking");
+  const [permissionState, setPermissionState] = useState<PermissionState>("checking");
 
   useEffect(() => {
     let isMounted = true;
@@ -113,18 +112,13 @@ export default function IndexScreen() {
         {permissionState === "checking" ? (
           <View style={styles.loadingState}>
             <ActivityIndicator color={palette.samsungBlue} />
-            <Text style={styles.loadingText}>
-              Checking permission status...
-            </Text>
+            <Text style={styles.loadingText}>Checking permission status...</Text>
           </View>
         ) : null}
 
         {permissionState === "prompt" ? (
           <>
-            <Pressable
-              style={styles.primaryButton}
-              onPress={requestLocationPermission}
-            >
+            <Pressable style={styles.primaryButton} onPress={requestLocationPermission}>
               <Text style={styles.primaryButtonText}>Allow location</Text>
             </Pressable>
             <Pressable style={styles.secondaryButton} onPress={continueToCars}>
@@ -143,19 +137,14 @@ export default function IndexScreen() {
         {permissionState === "blocked" ? (
           <>
             <Text style={styles.blockedText}>
-              Location access is currently blocked for this app. You can enable
-              it in system settings, or continue without it.
+              Location access is currently blocked for this app. You can enable it in system
+              settings, or continue without it.
             </Text>
-            <Pressable
-              style={styles.primaryButton}
-              onPress={openDeviceSettings}
-            >
+            <Pressable style={styles.primaryButton} onPress={openDeviceSettings}>
               <Text style={styles.primaryButtonText}>Open settings</Text>
             </Pressable>
             <Pressable style={styles.secondaryButton} onPress={continueToCars}>
-              <Text style={styles.secondaryButtonText}>
-                Continue without location
-              </Text>
+              <Text style={styles.secondaryButtonText}>Continue without location</Text>
             </Pressable>
           </>
         ) : null}

@@ -24,11 +24,11 @@ export function generateStaticParams() {
 
 export default function CarDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { isMobile, width } = useResponsive();
+  const { isMobile } = useResponsive();
   const car = getCarById(id);
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("About");
   const [isBackAnimating, setIsBackAnimating] = useState(false);
-  const slideProgress = useRef(new Animated.Value(Platform.OS === "web" ? 1 : 0)).current;
+  const transitionProgress = useRef(new Animated.Value(Platform.OS === "web" ? 1 : 0)).current;
 
   const gallery = useMemo(() => {
     if (!car) {
@@ -68,14 +68,14 @@ export default function CarDetailScreen() {
       return;
     }
 
-    slideProgress.setValue(1);
-    Animated.timing(slideProgress, {
+    transitionProgress.setValue(1);
+    Animated.timing(transitionProgress, {
       toValue: 0,
-      duration: 320,
+      duration: 260,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
-  }, [slideProgress]);
+  }, [transitionProgress]);
 
   const navigateBack = () => {
     if (router.canGoBack()) {
@@ -105,9 +105,9 @@ export default function CarDetailScreen() {
     }
 
     setIsBackAnimating(true);
-    Animated.timing(slideProgress, {
+    Animated.timing(transitionProgress, {
       toValue: 1,
-      duration: 280,
+      duration: 220,
       easing: Easing.in(Easing.cubic),
       useNativeDriver: true,
     }).start(({ finished }) => {
@@ -123,11 +123,21 @@ export default function CarDetailScreen() {
   const animatedScreenStyle =
     Platform.OS === "web"
       ? {
+          opacity: transitionProgress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [1, 0],
+          }),
           transform: [
             {
-              translateX: slideProgress.interpolate({
+              scale: transitionProgress.interpolate({
                 inputRange: [0, 1],
-                outputRange: [0, width],
+                outputRange: [1, 0.94],
+              }),
+            },
+            {
+              translateY: transitionProgress.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, spacing.xxl],
               }),
             },
           ],
@@ -145,7 +155,7 @@ export default function CarDetailScreen() {
             onPress={handleBackPress}
             disabled={isBackAnimating}
           >
-            <Ionicons name="chevron-back" size={20} color={palette.text} />
+            <Ionicons name="close" size={20} color={palette.text} />
           </Pressable>
 
           <Text style={styles.chromeTitle}>Car Details</Text>

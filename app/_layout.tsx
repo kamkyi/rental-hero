@@ -85,7 +85,8 @@ export default function RootLayout() {
             name="cars/[id]"
             options={{
               title: "Car details",
-              animation: "slide_from_right",
+              presentation: "modal",
+              animation: "fade_from_bottom",
             }}
           />
           <Stack.Screen name="payment" options={{ title: "Payment method" }} />
