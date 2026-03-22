@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { palette, radius, shadows, spacing } from "@/constants/theme";
 import { useResponsive } from "@/hooks/useResponsive";
@@ -12,6 +12,7 @@ type TopNavBarProps = {
   onLocationChange: (location: string) => void;
   onLoginPress: () => void;
   loginLabel?: string;
+  isLoginPending?: boolean;
 };
 
 type LanguageCode = "en" | "my" | "th";
@@ -22,6 +23,7 @@ export function TopNavBar({
   onLocationChange,
   onLoginPress,
   loginLabel,
+  isLoginPending = false,
 }: TopNavBarProps) {
   const { t, i18n } = useTranslation();
   const { isMobile } = useResponsive();
@@ -108,10 +110,18 @@ export function TopNavBar({
           </View>
 
           <Pressable
-            style={[styles.loginButton, isMobile && styles.loginButtonMobile]}
+            style={[
+              styles.loginButton,
+              isMobile && styles.loginButtonMobile,
+              isLoginPending && styles.loginButtonPending,
+            ]}
             onPress={onLoginPress}
+            disabled={isLoginPending}
           >
-            <Text style={styles.loginText}>{loginLabel ?? t("login")}</Text>
+            <View style={styles.loginContent}>
+              {isLoginPending ? <ActivityIndicator size="small" color={palette.white} /> : null}
+              <Text style={styles.loginText}>{loginLabel ?? t("login")}</Text>
+            </View>
           </Pressable>
         </View>
       </View>
@@ -222,8 +232,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  loginButtonPending: {
+    backgroundColor: palette.samsungBlueSoft,
+  },
   loginButtonMobile: {
     width: "100%",
+  },
+  loginContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
   },
   loginText: {
     color: palette.white,

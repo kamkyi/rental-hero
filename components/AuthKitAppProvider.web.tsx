@@ -1,6 +1,8 @@
 import { AuthKitProvider } from "@workos-inc/authkit-react";
 import type { PropsWithChildren } from "react";
 
+import { AppToastProvider } from "@/components/AppToastProvider";
+
 function parseBoolean(value?: string) {
   if (value === "true") {
     return true;
@@ -25,7 +27,7 @@ export function AuthKitAppProvider({ children }: PropsWithChildren) {
   const clientId = process.env.EXPO_PUBLIC_WORKOS_CLIENT_ID?.trim();
 
   if (!clientId) {
-    return children;
+    return <AppToastProvider>{children}</AppToastProvider>;
   }
 
   const basePath = normalizeBasePath(process.env.EXPO_PUBLIC_BASE_URL);
@@ -46,7 +48,7 @@ export function AuthKitAppProvider({ children }: PropsWithChildren) {
         }
       }}
     >
-      {children}
+      <AppToastProvider>{children}</AppToastProvider>
     </AuthKitProvider>
   );
 }

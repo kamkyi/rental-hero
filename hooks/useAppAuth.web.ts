@@ -13,6 +13,10 @@ type AppAuthState = {
 export function useAppAuth(): AppAuthState {
   const { user, isLoading, signIn, signOut } = useAuth();
 
+  const basePath = process.env.EXPO_PUBLIC_BASE_URL?.trim();
+  const normalizedBasePath =
+    !basePath || basePath === "/" ? "" : basePath.startsWith("/") ? basePath : `/${basePath}`;
+
   const handleSignIn = useCallback(async () => {
     await signIn({
       state: {
@@ -22,11 +26,11 @@ export function useAppAuth(): AppAuthState {
   }, [signIn]);
 
   const handleSignOut = useCallback(async () => {
-    signOut({
-      returnTo: `${window.location.origin}/cars`,
+    await signOut({
+      returnTo: `${window.location.origin}${normalizedBasePath}/cars`,
       navigate: true,
     });
-  }, [signOut]);
+  }, [normalizedBasePath, signOut]);
 
   return {
     user: user

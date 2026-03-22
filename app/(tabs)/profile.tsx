@@ -1,10 +1,18 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { AppShell } from "@/components/AppShell";
 import { palette, radius, shadows, spacing } from "@/constants/theme";
-import { useAppAuth } from "@/hooks/useAppAuth";
+import { useAuthAction } from "@/hooks/useAuthAction";
 
 const shortcuts = [
   { label: "Upcoming bookings", icon: "calendar-outline" as const },
@@ -14,25 +22,12 @@ const shortcuts = [
 
 export default function ProfileTabScreen() {
   const { t } = useTranslation();
-  const { user, isLoading, signIn, signOut } = useAppAuth();
+  const { authLabel, handleAuthPress, isLoading, isPending, user } = useAuthAction();
 
   const displayName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || "Rental Hero Member";
   const displayEmail = user?.email ?? "guest@rentalhero.app";
   const initials = (displayName.match(/\b\w/g)?.join("").slice(0, 2) || "RH").toUpperCase();
-
-  const handleAuthPress = async () => {
-    if (Platform.OS !== "web") {
-      return;
-    }
-
-    if (user) {
-      await signOut();
-      return;
-    }
-
-    await signIn();
-  };
 
   return (
     <AppShell>
@@ -51,15 +46,22 @@ export default function ProfileTabScreen() {
         <Text style={styles.name}>{displayName}</Text>
         <Text style={styles.email}>{displayEmail}</Text>
         {Platform.OS === "web" ? (
-          <Pressable style={styles.authButton} onPress={handleAuthPress}>
-            <Text style={styles.authButtonText}>{user ? t("logout") : t("login")}</Text>
+          <Pressable
+            style={[styles.authButton, isPending && styles.authButtonPending]}
+            onPress={handleAuthPress}
+            disabled={isPending}
+          >
+            <View style={styles.authButtonContent}>
+              {isPending ? <ActivityIndicator size="small" color={palette.white} /> : null}
+              <Text style={styles.authButtonText}>{authLabel}</Text>
+            </View>
           </Pressable>
         ) : null}
-        {isLoading ? <Text style={styles.statusText}>Syncing account...</Text> : null}
+        {isLoading ? <Text style={styles.statusText}>{t("authSyncingAccount")}</Text> : null}
       </View>
 
       <View style={styles.shortcutCard}>
-        <Text style={styles.sectionTitle}>Account shortcuts</Text>
+        <Text style={styles.sectionTitle}>{t("accountShortcuts")}</Text>
         <View style={styles.shortcutList}>
           {shortcuts.map((shortcut) => (
             <View key={shortcut.label} style={styles.shortcutRow}>
@@ -90,7 +92,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 84,
     height: 84,
-    borderRadius: 42,
+    borderRadius: radius.pill,
     backgroundColor: palette.samsungBlue,
     alignItems: "center",
     justifyContent: "center",
@@ -122,6 +124,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
     marginTop: spacing.xs,
+  },
+  authButtonPending: {
+    backgroundColor: palette.samsungBlueSoft,
+  },
+  authButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
   },
   authButtonText: {
     color: palette.white,
@@ -165,7 +176,7 @@ const styles = StyleSheet.create({
   shortcutIcon: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: radius.pill,
     backgroundColor: palette.samsungBlueTint,
     alignItems: "center",
     justifyContent: "center",

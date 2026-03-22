@@ -20,58 +20,93 @@ export function CarCard({ car, onPress }: CarCardProps) {
       <View style={styles.imageWrap}>
         <View style={styles.mediaMetaRow}>
           <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{car.type}</Text>
+            <Text style={[styles.categoryText, isCompact && styles.categoryTextCompact]}>
+              {car.type}
+            </Text>
           </View>
           <View style={styles.favoriteButton}>
             <Ionicons name="heart-outline" size={16} color={palette.samsungBlue} />
           </View>
         </View>
 
-        <Image source={{ uri: car.image }} style={styles.image} resizeMode="contain" />
+        <Image
+          source={{ uri: car.image }}
+          style={[styles.image, isCompact && styles.imageCompact]}
+          resizeMode="contain"
+        />
 
         <View style={[styles.imageBadgeRow, isCompact && styles.imageBadgeRowCompact]}>
           <View style={[styles.insuranceBadge, isCompact && styles.insuranceBadgeCompact]}>
             <Ionicons name="shield-checkmark" size={13} color={palette.white} />
-            <Text style={styles.insuranceBadgeText}>{t("insurance")}</Text>
+            <Text
+              style={[styles.insuranceBadgeText, isCompact && styles.insuranceBadgeTextCompact]}
+            >
+              {t("insurance")}
+            </Text>
           </View>
 
           <View style={styles.ratingPill}>
             <Ionicons name="star" size={12} color="#F5A623" />
-            <Text style={styles.rating}>{car.rating.toFixed(1)}</Text>
+            <Text style={[styles.rating, isCompact && styles.ratingCompact]}>
+              {car.rating.toFixed(1)}
+            </Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.body}>
+      <View style={[styles.body, isCompact && styles.bodyCompact]}>
         <View style={[styles.titlePriceRow, isMobile && styles.titlePriceRowMobile]}>
           <View style={styles.titleBlock}>
-            <Text style={styles.name} numberOfLines={1}>
+            <Text
+              style={[styles.name, isMobile && styles.nameMobile, isCompact && styles.nameCompact]}
+              numberOfLines={1}
+            >
               {car.name}
             </Text>
             <View style={styles.locationMetaRow}>
               <Ionicons name="location-outline" size={14} color={palette.textMuted} />
-              <Text style={styles.meta}>{car.location}</Text>
+              <Text style={[styles.meta, isCompact && styles.metaCompact]}>{car.location}</Text>
             </View>
           </View>
 
           <View style={[styles.priceBlock, isMobile && styles.priceBlockMobile]}>
-            <Text style={styles.price}>฿{car.pricePerDay.toLocaleString()}</Text>
-            <Text style={styles.priceUnit}>per day</Text>
+            <Text
+              style={[
+                styles.price,
+                isMobile && styles.priceMobile,
+                isCompact && styles.priceCompact,
+              ]}
+            >
+              ฿{car.pricePerDay.toLocaleString()}
+            </Text>
+            <Text
+              style={[
+                styles.priceUnit,
+                isMobile && styles.priceUnitMobile,
+                isCompact && styles.priceUnitCompact,
+              ]}
+            >
+              per day
+            </Text>
           </View>
         </View>
 
-        <View style={styles.specRow}>
+        <View style={[styles.specRow, isCompact && styles.specRowCompact]}>
           <View style={styles.specItem}>
             <Ionicons name="settings-outline" size={14} color={palette.samsungBlue} />
-            <Text style={styles.specText}>{car.transmission}</Text>
+            <Text style={[styles.specText, isCompact && styles.specTextCompact]}>
+              {car.transmission}
+            </Text>
           </View>
           <View style={styles.specItem}>
             <Ionicons name="flash-outline" size={14} color={palette.samsungBlue} />
-            <Text style={styles.specText}>{car.fuel}</Text>
+            <Text style={[styles.specText, isCompact && styles.specTextCompact]}>{car.fuel}</Text>
           </View>
           <View style={styles.specItem}>
             <Ionicons name="people-outline" size={14} color={palette.samsungBlue} />
-            <Text style={styles.specText}>{car.seats} Seats</Text>
+            <Text style={[styles.specText, isCompact && styles.specTextCompact]}>
+              {car.seats} Seats
+            </Text>
           </View>
         </View>
       </View>
@@ -97,6 +132,9 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 164,
   },
+  imageCompact: {
+    height: 148,
+  },
   imageWrap: {
     backgroundColor: "#F4F7FB",
     borderRadius: radius.lg,
@@ -111,6 +149,9 @@ const styles = StyleSheet.create({
   },
   body: {
     gap: spacing.sm,
+  },
+  bodyCompact: {
+    gap: spacing.xs,
   },
   imageBadgeRow: {
     flexDirection: "row",
@@ -129,7 +170,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   titlePriceRowMobile: {
-    flexWrap: "wrap",
+    gap: spacing.sm,
   },
   titleBlock: {
     gap: spacing.xs,
@@ -146,9 +187,18 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
   },
+  nameMobile: {
+    fontSize: 18,
+  },
+  nameCompact: {
+    fontSize: 17,
+  },
   meta: {
     color: palette.textMuted,
     fontSize: 14,
+  },
+  metaCompact: {
+    fontSize: 13,
   },
   ratingPill: {
     backgroundColor: palette.white,
@@ -194,6 +244,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 13,
   },
+  ratingCompact: {
+    fontSize: 12,
+  },
   categoryBadge: {
     alignSelf: "flex-start",
     backgroundColor: palette.white,
@@ -208,14 +261,16 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 12,
   },
+  categoryTextCompact: {
+    fontSize: 11,
+  },
   priceBlock: {
     alignItems: "flex-end",
     gap: spacing.xxs,
     flexShrink: 0,
   },
   priceBlockMobile: {
-    width: "100%",
-    alignItems: "flex-start",
+    minWidth: 84,
   },
   specRow: {
     flexDirection: "row",
@@ -224,6 +279,10 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: "#EEF2F6",
+  },
+  specRowCompact: {
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
   },
   specItem: {
     flexDirection: "row",
@@ -238,15 +297,33 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontSize: 13,
   },
+  specTextCompact: {
+    fontSize: 12,
+  },
   price: {
     color: palette.samsungBlue,
     fontSize: 24,
     fontWeight: "800",
     textAlign: "right",
   },
+  priceMobile: {
+    fontSize: 22,
+  },
+  priceCompact: {
+    fontSize: 20,
+  },
   priceUnit: {
     fontSize: 12,
     fontWeight: "700",
     color: palette.textMuted,
+  },
+  priceUnitMobile: {
+    fontSize: 11,
+  },
+  priceUnitCompact: {
+    fontSize: 10,
+  },
+  insuranceBadgeTextCompact: {
+    fontSize: 11,
   },
 });
